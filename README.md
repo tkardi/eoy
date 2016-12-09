@@ -4,7 +4,7 @@ Eesti otsib ühistransporti
 Eesmärk
 -------
 Selle projekti eesmärgiks on pakkuda võimalust ühistranspordivahendite 
-kuvamiseks kaardil pseudo-reaalajas. Asukohad on arvutatavad [Maanteeameti GTFS(
+kuvamiseks kaardil pseudo-reaalajas. Asukohad on arvutatavad [Maanteeameti GTFS](
 https://transitfeeds.com/p/maanteeamet/510) [avaandmete](
 https://www.mnt.ee/et/uhistransport/uhistranspordi-infosusteem) (või sarnaste) 
 andmete põhjal ning ei oma tegelikkuses mingisugust seost reaalse situatsiooniga.
