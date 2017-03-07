@@ -46,10 +46,10 @@ create table if not exists gtfs.routes(
 alter table gtfs.routes owner to postgres;
 alter table gtfs.routes add constraint 
     pk__routes primary key (route_id);
-alter table gtfs.routes add constraint
-    fk__routes__agency foreign key (agency_id) references gtfs.agency (agency_id)
-    on update cascade on delete no action
-    deferrable initially deferred;
+--alter table gtfs.routes add constraint
+--    fk__routes__agency foreign key (agency_id) references gtfs.agency (agency_id)
+--    on update cascade on delete no action
+--    deferrable initially deferred;
 
 
 create table if not exists gtfs.shapes(
@@ -103,10 +103,10 @@ create table if not exists gtfs.stop_times(
     drop_off_type smallint
 );
 alter table gtfs.stop_times owner to postgres;
-alter table gtfs.stop_times add constraint
-    fk__stop_times__stops foreign key (stop_id) references gtfs.stops (stop_id)
-    on update cascade on delete no action
-    deferrable initially deferred;
+--alter table gtfs.stop_times add constraint
+--    fk__stop_times__stops foreign key (stop_id) references gtfs.stops (stop_id)
+--    on update cascade on delete no action
+--    deferrable initially deferred;
 
 
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Django settings for api project.
 
@@ -13,6 +14,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 from conf.settings import DEBUG, SECRET_KEY, ALLOWED_HOSTS, DB_USER, DB_PASSWORD
+from conf.settings import DB_NAME, SYNC_USER, SYNC_PASSWORD
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -72,11 +74,19 @@ WSGI_APPLICATION = 'api.wsgi.application'
 
 DATABASES = {
     'default': {
-        'NAME': 'kemgiscore',
+        'NAME': DB_NAME,
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'HOST': 'localhost',
         'USER': DB_USER,
         'PASSWORD': DB_PASSWORD,
+        'PORT': '5432'
+    },
+    'sync': {
+        'NAME': DB_NAME,
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'HOST': 'localhost',
+        'USER': SYNC_USER,
+        'PASSWORD': SYNC_PASSWORD,
         'PORT': '5432'
     }
 }
