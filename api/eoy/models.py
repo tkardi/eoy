@@ -12,27 +12,36 @@ class Stops(models.Model):
         db_table = 'gtfs\".\"stops'
 
 class LocationTable(models.Model):
-    trip_id = models.IntegerField(primary_key=True)
+    trip_id = models.IntegerField(
+        primary_key=True)
     shape_id = models.IntegerField()
-    trip_start_time = models.CharField(max_length=8, db_column='strt')
-    trip_end_time = models.CharField(max_length=8, db_column='fin')
-    current_time = models.CharField(max_length=8, db_column='cur')
-    prevstop_id = models.ForeignKey(
-        'Stops', related_name='prevstop', db_column='prevstop_id')
-    prevstop_name = models.CharField(max_length=250)
-    prevstop_depart = models.CharField(max_length=8)
-    prevstop_seq = models.IntegerField()
-    nextstop_id = models.ForeignKey(
-        'Stops', related_name='nextstop', db_column='nextstop_id')
-    nextstop_name = models.CharField(max_length=250)
-    nextstop_arrive = models.CharField(max_length=8)
-    nextstop_seq = models.IntegerField()
+    trip_start_time = models.CharField(
+        max_length=8, db_column='trip_start')
+    trip_end_time = models.CharField(
+        max_length=8, db_column='trip_fin')
+    current_time = models.CharField(
+        max_length=8, db_column='current_time')
+    #prevstop_id = models.ForeignKey(
+    #    'Stops', related_name='prevstop', db_column='prev_stop_id')
+    prevstop_name = models.CharField(
+        max_length=250, db_column='prev_stop')
+    prevstop_depart = models.CharField(
+        max_length=8, db_column='prev_stop_time')
+    #prevstop_seq = models.IntegerField()
+    #nextstop_id = models.ForeignKey(
+    #    'Stops', related_name='nextstop', db_column='next_stop_id')
+    nextstop_name = models.CharField(
+        max_length=250, db_column='next_stop')
+    nextstop_arrive = models.CharField(
+        max_length=8, db_column='next_stop_time')
+    #nextstop_seq = models.IntegerField()
     trip_headsign = models.CharField(max_length=250)
     trip_long_name = models.CharField(max_length=250)
     route_short_name = models.CharField(max_length=100)
+    route_long_name = models.CharField(max_length=255)
     route_color = models.CharField(max_length=10)
     location = models.PointField(srid=4326, db_column='pos')
 
     class Meta:
         managed = False
-        db_table = 'gtfs\".\"loctable'
+        db_table = 'gtfs\".\"loctable_v2'
