@@ -539,12 +539,13 @@ select
     fromstop.stop_id as prev_stop_id,
     fromstop.stop_name as prev_stop,
     trip.leg_start as prev_stop_time,
+    curtime.ct as current_time,
     '#'::text || trip.route_color::text as route_color,
     st_lineinterpolatepoint(
         trip.shape, gtfs.get_time_fraction(
             trip.leg_start, trip.leg_fin, gtfs.get_current_impeded_time(
                 trip.leg_start, trip.leg_fin, trip.cur::character varying))) as pos
-from trip
+from curtime, trip
     left join gtfs.stops tostop on trip.to_stop_id = tostop.stop_id
     left join gtfs.stops fromstop on trip.from_stop_id = fromstop.stop_id;
 
