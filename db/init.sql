@@ -109,6 +109,8 @@ alter table gtfs.stop_times owner to postgres;
 --    deferrable initially deferred;
 
 
+/* Functions */
+
 
 create or replace function gtfs.get_time_fraction(
     trip_start varchar, trip_fin varchar, curtime varchar)
@@ -316,6 +318,54 @@ union all
 
 ) t;
 */
+
+/** FUNCTION split_line_multipoint(geometry, geometry)
+*   by http://gis.stackexchange.com/users/564/rcoup
+*   posted @ http://gis.stackexchange.com/a/112317
+*/
+
+CREATE OR REPLACE FUNCTION public.split_line_multipoint(
+    input_geom geometry,
+    blade geometry)
+  RETURNS geometry AS
+$BODY$
+    -- this function is a wrapper around the function ST_Split 
+    -- to allow splitting multilines with multipoints
+    --
+    DECLARE
+        result geometry;
+        simple_blade geometry;
+        blade_geometry_type text := GeometryType(blade);
+        geom_geometry_type text := GeometryType(input_geom);
+    BEGIN
+        IF blade_geometry_type NOT ILIKE 'MULTI%' THEN
+            RETURN ST_Split(input_geom, blade);
+        ELSIF blade_geometry_type NOT ILIKE '%POINT' THEN
+            RAISE NOTICE 'Need a Point/MultiPoint blade';
+            RETURN NULL;
+        END IF;
+
+        IF geom_geometry_type NOT ILIKE '%LINESTRING' THEN
+            RAISE NOTICE 'Need a LineString/MultiLineString input_geom';
+            RETURN NULL;
+        END IF;
+
+        result := input_geom;           
+        -- Loop on all the points in the blade
+        FOR simple_blade IN SELECT (ST_Dump(ST_CollectionExtract(blade, 1))).geom
+        LOOP
+            -- keep splitting the previous result
+            result := ST_CollectionExtract(ST_Split(result, simple_blade), 2);
+        END LOOP;
+        RETURN result;
+    END;
+$BODY$
+  LANGUAGE plpgsql IMMUTABLE
+  COST 100;
+ALTER FUNCTION public.split_line_multipoint(geometry, geometry)
+  OWNER TO postgres;
+comment on function public.split_line_multipoint(geometry, geometry) is 
+    'Function by http://gis.stackexchange.com/users/564/rcoup posted @ http://gis.stackexchange.com/a/112317';
 
 
 /** Some tuning/preprocessing. These will have to be wrapped either
