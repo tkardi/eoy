@@ -22,6 +22,9 @@ urlpatterns = [
     #url(r'^admin/', include(admin.site.urls)),
     url(r'^$', views.index, name='home'),
     url(
-        r'^locationtable/$', views.LocTableAsList.as_view(),
-        name='loctable-list'),
+        r'^current/locations/$', views.LocTableAsList.as_view(),
+        name='locations-list'),
+    url(
+        r'^current/trips/$', views.index,
+        name='trips-list'),
 ]

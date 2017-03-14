@@ -11,7 +11,7 @@ class Stops(models.Model):
         managed = False
         db_table = 'gtfs\".\"stops'
 
-class LocationTable(models.Model):
+class CurrentLocations(models.Model):
     trip_id = models.IntegerField(
         primary_key=True)
     shape_id = models.IntegerField()
@@ -45,3 +45,10 @@ class LocationTable(models.Model):
     class Meta:
         managed = False
         db_table = 'gtfs\".\"loctable_v2'
+
+
+#class CurrentTrips(models.Model):
+#
+#    class Meta:
+#        managed = False
+#        db_table = 'gtfs\".\"calctrips'
