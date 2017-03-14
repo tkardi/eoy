@@ -42,7 +42,9 @@ olemasolu vajalik andmete laadimiseks. (miks?)
 Need on paigaldatavad `pip`iga 
 
 `$ pip install django==1.8`
+
 `$ pip install rest_framework`
+
 `$ pip install rest_framework_gis`
 
 ## Andmete laadimine
