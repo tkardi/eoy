@@ -1,6 +1,6 @@
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from models import LocationTable
+from models import CurrentLocations
 
 class LocationTableSerializer(GeoFeatureModelSerializer):
     class Meta:
@@ -10,6 +10,6 @@ class LocationTableSerializer(GeoFeatureModelSerializer):
             'nextstop_name', 'nextstop_arrive', 'trip_headsign',
             'trip_long_name', 'route_short_name', 'route_long_name',
             'route_color']
-        model = LocationTable
+        model = CurrentLocations
         lookup_field = 'trip_id'
         geo_field = 'location'

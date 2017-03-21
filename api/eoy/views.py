@@ -3,7 +3,7 @@ from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from models import LocationTable
+from models import CurrentLocations
 import serializers
 
 # Create your views here.
@@ -13,5 +13,5 @@ def index(request, *args, **kwargs):
     return Response({"message":"Nobody expects the spanish inquisition!"})
 
 class LocTableAsList(generics.ListAPIView):
-    queryset = LocationTable.objects.all()
+    queryset = CurrentLocations.objects.all()
     serializer_class = serializers.LocationTableSerializer
