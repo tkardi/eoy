@@ -22,6 +22,9 @@ Current locations are returned as a [GeoJSON](
 https://datatracker.ietf.org/doc/rfc7946/) `FeatureCollection` using a HTTP GET
 query to the web API.
 
+An example "real-time dashboard"-style preview can be checked out [here](
+https://tkardi.github.io/eoy/example/current.html)
+
 The name of the project is a word play on an Estonian television talent show
 title.
 
