@@ -20,6 +20,9 @@ Viimase ajahetke teadaolevad ühistranspordivahedite asukohad tagastakse veebi-A
 HTTP GET päringu peale. Päringu vastuseks on [GeoJSONi spetsifikatsioonile](
 https://datatracker.ietf.org/doc/rfc7946/) vastav `FeatureCollection`.
 
+Näidist "real-time dashboard"-stiilis eelvaatest saab näha [siin](
+https://tkardi.github.io/eoy/example/current.html)
+
 # Paigaldus
 ## Andmebaas
 Eeldame PostgreSQL (9.4) / PostGIS (2.1) olemasolu. Käivita admin-kasutajana
