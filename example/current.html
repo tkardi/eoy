@@ -85,10 +85,13 @@
         L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {
             attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
         }).addTo(map);
-        
+
         map.attributionControl.addAttribution(
-            '<br>Icons using <a href="https://github.com/lvoogdt/Leaflet.awesome-markers">Leaflet.AwesomeMarkers</a> and <a href="http://fontawesome.io/">Font Awesome</a>'
-        )
+            '<br>Icons: <a href="https://github.com/lvoogdt/Leaflet.awesome-markers">Leaflet.AwesomeMarkers</a> and <a href="http://fontawesome.io/">Font Awesome</a>'
+        );
+        map.attributionControl.addAttribution(
+            'marker animation: <a href="https://github.com/perliedman/leaflet-realtime">Leaflet Realtime</a>'
+        );
     </script>
   </body>
 </html>
