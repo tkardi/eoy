@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="et">
+  <head>
+    <meta charset="utf-8">
+    <title>Public transit map</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-realtime/2.0.0/leaflet-realtime.min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.min.js" type="text/javascript"></script>
+    <style>
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="map">
+
+    </div>
+    <script>
+        var map = L.map('map').setView([58.6625,25.3125], 7),
+            follow_layer_id = undefined,
+            realtime = L.realtime('https://tkardi.ee/current/locations/?format=json', {
+                interval: 3 * 1000,
+                getFeatureId: function(feature) {
+                    return feature.id;
+                },
+                pointToLayer: function(feature, latlng) {
+                    var marker = L.marker(latlng, {
+                        icon: L.AwesomeMarkers.icon({
+                            prefix: 'fa',
+                            icon: 'fa-bus',
+                            markerColor: 'black',
+                            iconColor: feature.properties.route_color
+                        }),
+                        riseOnHover: true
+                    }).bindTooltip(
+                        L.Util.template(
+                            '{route_short_name}: {route_long_name}. Next: {nextstop_name} @ {nextstop_arrive}',
+                            feature.properties
+                        )
+                    );
+                    return marker;
+                },
+                onEachFeature: function(feature, layer) {
+                    layer.on({
+                        click: function (e) {
+                            follow_layer_id = e.target.feature.id;
+                            map.panTo(e.target.getLatLng());
+                        },
+                        mouseover: function (e) {
+                            var layer = e.target;
+                                feature = layer.feature;
+                            layer.setTooltipContent(
+                                L.Util.template(
+                                    '{route_short_name}: {route_long_name}. Next: {nextstop_name} @ {nextstop_arrive}',
+                                    feature.properties
+                                )
+                            );
+                        }
+                    });
+                }
+            }).addTo(map);
+
+        map.on('click', function(e) {
+            follow_layer_id = undefined;
+        });
+
+        realtime.on('update', function() {
+            if (follow_layer_id === undefined) {
+                return;
+            }
+            var follow_layer = realtime.getLayer(follow_layer_id);
+            if (follow_layer !== undefined) {
+                map.panTo(follow_layer.getLatLng());
+            }
+        });
+
+        L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {
+            attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+        }).addTo(map);
+        
+        map.attributionControl.addAttribution(
+            '<br>Icons using <a href="https://github.com/lvoogdt/Leaflet.awesome-markers">Leaflet.AwesomeMarkers</a> and <a href="http://fontawesome.io/">Font Awesome</a>'
+        )
+    </script>
+  </body>
+</html>
