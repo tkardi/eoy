@@ -17,6 +17,21 @@
             bottom: 0;
             right: 0;
         }
+        .legend {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+            line-height: 18px;
+            color: #070707;
+            width: 200px;
+        }
+        .legend h4 {
+            margin: 0 0 5px;
+            text-align: center;
+        }
     </style>
   </head>
   <body>
@@ -25,7 +40,22 @@
     </div>
     <script>
         var map = L.map('map').setView([58.6625,25.3125], 7),
+            // follow_layer is the vehicle that will be centered on and followed
+            // during updates after it has been selected w/ a click.
             follow_layer_id = undefined,
+            // don't know types, let's decode from route colors.
+            route_types = {
+                "#00A1DE": "Trolleybus",
+                "#8FD759": "Tram",
+                "#969696": "Rail",
+                "#DE2C42": "Bus (inner city)",
+                "#00933C": "Bus (county)",
+                "#F55ADC": "Route taxi",
+                "#FF6319": "Bus (inner city express)",
+                "#E6FA32": "Bus (long distance)",
+                "#8BB4C5": "Ferry"
+            },
+            // vehicle locations layer
             realtime = L.realtime('https://tkardi.ee/current/locations/?format=json', {
                 interval: 3 * 1000,
                 getFeatureId: function(feature) {
@@ -42,7 +72,7 @@
                         riseOnHover: true
                     }).bindTooltip(
                         L.Util.template(
-                            '{route_short_name}: {route_long_name}. Next: {nextstop_name} @ {nextstop_arrive}',
+                            '{route_short_name}: {trip_long_name}. <br>Headsign: {trip_headsign}. <br>Next: {nextstop_name} @ {nextstop_arrive}',
                             feature.properties
                         )
                     );
@@ -59,7 +89,7 @@
                                 feature = layer.feature;
                             layer.setTooltipContent(
                                 L.Util.template(
-                                    '{route_short_name}: {route_long_name}. Next: {nextstop_name} @ {nextstop_arrive}',
+                                    '{route_short_name}: {trip_long_name}. <br>Headsign: {trip_headsign}. <br>Next: {nextstop_name} @ {nextstop_arrive}',
                                     feature.properties
                                 )
                             );
@@ -68,11 +98,54 @@
                 }
             }).addTo(map);
 
+        // a legend for decoding those colorful buses.
+
+        var legend = L.control({position:'bottomright'});
+        legend.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'info legend'),
+                types = this.types = [],
+                labels = this.labels = [],
+                title = this.title = 'Fetching locations...';
+            div.innerHTML = L.Util.template(
+                '<h4>{title}</h4>',
+                {title:this.title});
+            return div;
+        }
+
+        legend.update = function(types) {
+            var distinct = types.distinct,
+                current_time = types.current_time || 'Currently nothing is running',
+                title = L.Util.template(
+                '<h4>{time}</h4>',
+                {time:current_time}),
+                body = '',
+                container = this.getContainer();
+            for (var i=0; i < distinct.length; i++) {
+                var color = distinct[i],
+                    label = route_types[color];
+                body +=
+                    '</br><span class="fa-stack fa-lg">' +
+                    '<i class="fa fa-circle fa-stack-2x"></i>' +
+                    '<i style="color:' + color + '" class="fa fa-bus fa-stack-1x"></i>' +
+                    '</span> '+ label;
+            }
+            container.innerHTML = L.Util.template(
+                '{head}{body}',
+                {head:title, body:body}
+            );
+        }
+
+        legend.addTo(map);
+
         map.on('click', function(e) {
+            // unfollow the vehicle
             follow_layer_id = undefined;
         });
 
         realtime.on('update', function() {
+            var distinct = getDistinctTypes(realtime._features);
+            legend.update(distinct);
+
             if (follow_layer_id === undefined) {
                 return;
             }
@@ -80,9 +153,10 @@
             if (follow_layer !== undefined) {
                 map.panTo(follow_layer.getLatLng());
             }
+
         });
 
-        L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {
+        L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
             attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
         }).addTo(map);
 
@@ -95,6 +169,24 @@
         map.attributionControl.addAttribution(
             '<br>Transit locations calculated from <a href="https://www.mnt.ee/eng">Estonian Road Administration</a> Public Transportation Information System <a href="https://www.mnt.ee/eng/public-transportation/public-transport-information-system">data</a>'
         );
+
+        getDistinctTypes = function(features){
+            var current_time = undefined,
+                distinct = [],
+                data = {distinct:distinct};
+            for (var i in features) {
+                var feature = features[i]
+                if (current_time === undefined) {
+                    current_time = feature.properties.current_time;
+                }
+                var route_color = feature.properties.route_color;
+                if (!distinct.includes(route_color)) {
+                    distinct.push(route_color);
+                }
+            }
+            data.current_time = current_time;
+            return data;
+        }
     </script>
   </body>
 </html>
