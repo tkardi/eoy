@@ -1,0 +1,241 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Estimating public transit "real-time" locations based on time-table data</title>
+
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.min.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/black.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'https://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css' : 'https://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<h2>Estimating public transit "real-time" locations based on time-table data</h2>
+          <br><br><br><br><br>
+					<div align="right">
+						<small>
+					    Tõnis Kärdi
+            <br>
+          	  <a href="https://twitter.com/tkardi">@tkardi</a>
+  				  <br>
+						  <a href="mailto:tonis.kardi@gmail.com">tonis.kardi@gmail.com</a>
+            <br><br>
+              20.07.2017 - FOSS4G Europe
+          </small>
+					</div>
+				</section>
+				<section>
+					<section>
+            WHY?
+				  </section>
+          <section>
+            Issues with train timetables ...<br>
+          </section>
+          <section>
+            <ul style="list-style-type:square">
+              <li>only future trips available</li>
+              <li>railway reconstruction - weekly changes</li>
+            </ul>
+          </section>
+          <section>
+            and no map<br><small>(with current location of trains)</small>
+          </section>
+          <section>
+            When do I need to drive to the station then?<br>
+            <small>(got there some 30 min early)</small>
+          </section>
+          <section>
+            What if there was an API that would return public transit locations?<br>
+            <small>(preferably in GeoJSON)</small>
+          </section>
+				</section>
+			  <section>
+          <!-- no point, who cares? Dismiss this section?? -->
+          <section>
+            Address ranges to address points<br>
+            <small>(create n number of shifted points to the left, m to the right of street centerline)</small>
+          </section>
+          <section>
+            Road sign data for routing<br>
+            <small>(got some really funny results, though...)</small>
+          </section>
+          <section>
+            Power grid spatial data out of mast x, y coordinates<br>
+            <small>(power line centerlines, mast-to-mast protection zones, "wires", etc.)</small>
+          </section>
+          <section>
+            ... so why not simulate realtime public transit?<br>
+            <small>(from timetables to <strike>actual</strike> locations)</small>
+          </section>
+        </section>
+        <section>
+          <section>
+            Enter GTFS* <br>
+            <small>(data supplied by the Estonian Road Administration)</small>
+            <div align="right">
+              <br><br><br><br>
+              <small>* - The General Transit Feed Specification <br>https://developers.google.com/transit/gtfs/</small>
+            </div>
+          </section>
+          <section>
+            <ul style="list-style-type:square">
+              <li><b>routes</b> - transit "lines" (e.g "bus number 5")</li>
+              <li><b>trips</b> - a route in a given timeframe</li>
+              <li><b>calendar</b> - weekly schedule for trips</li>
+              <li><b>stops</b> - stop locations</li>
+              <li><b>stop_times</b> - defines stops for a trip</li>
+              <li><b>shapes</b> - vehicle paths for trips</li>
+              <li>...</li>
+            </ul>
+          </section>
+          <section>
+            and others<br>
+            <small>(but we'll settle with these for the moment)</small>
+          </section>
+        </section>
+        <section>
+          <section>
+            Calculating locations
+          </section>
+          <section>
+            <img src="./img/trip.png">
+            <div align="right">
+              <small>length: ~ 4 km</small>
+            </div>
+          </section>
+          <section>
+            Based on current time calculate fraction of time covered and st_lineinterpolatepoint
+          </section>
+          <section>
+            <img src="./img/full-trip.gif">
+            <div align="right">
+              <small>length: ~ 3.5 km, total time: 2 minutes</small>
+            </div>
+          </section>
+          <section>
+            Cool!<br>
+            <small>(but with intermediate stops this bus might never be on time)</small>
+          </section>
+          <section>
+            <img src="./img/trip-stops.png">
+            <div align="right">
+              <small>A to B: 1.8 km, B to A: 1.7 km</small>
+            </div>
+          </section>
+          <section>
+            <img src="./img/full-trip-stops.gif">
+            <div align="right">
+              <small>A to B: 30 secs, B to A: 90 secs</small>
+            </div>
+          </section>
+          <section>
+            But how are passangers supposed to get on and off?<br>
+            <small>(add <b>impedance</b> to traveltime at stops)</small>
+          </section>
+          <section>
+            <img src="../db/scrap/kiirendus.png" style="background-color:white;"/>
+            <div align="right">
+              <small>Adding acceleration/deceleration to transit location calculation. See <a href ="https://github.com/tkardi/eoy/issues/2">eoy#2</a> (in Estonian)</small>
+            </div>
+          </section>
+          <section>
+            <img src="./img/full-trip-stops-acc.gif">
+            <div align="right">
+              <small>accelerate / decelarate: 8 secs, stop 3 + 3 secs</small>
+            </div>
+          </section>
+          <section>
+            <img src="./img/full-trip-compare.gif">
+            <div align="right">
+              <small><b>Red</b>: interpolate whole trip. <b>Blue</b>: interpolate using stops. <b>Green</b>: interpolate using stops and impeded time</small>
+            </div>
+          </section>
+        </section>
+
+        <section>
+          <section>
+            PostgreSQL + Django
+          </section>
+          <section>
+            <a href="https://tkardi.ee/current/locations/?format=json" data-preview-link>API</a><br>
+            <small>https://tkardi.ee/current/locations/?format=json</small>
+          </section>
+          <section>
+            <a href="https://tkardi.github.io/eoy/example/current.html" data-preview-link>Example dashboard</a>
+          </section>
+        </section>
+
+        <section>
+          <section>
+            Gotchas
+          </section>
+          <section>
+            Vehicles are always expected to move along the vector<br>
+            <small>(direction not checked)</small>
+          </section>
+
+
+          <section>
+
+          </section>
+        </section>
+
+        <section>
+          <section>
+            Where to next?
+          </section>
+          <section>
+            A bigger geographical area?
+
+          </section>
+          <section>
+            Past and future locations?
+
+          </section>
+          <section>
+            Support for use with QGIS TimeManager?
+
+          </section>
+        </section>
+				<section>
+						<a href="https://github.com/tkardi/eoy">https://github.com/tkardi/eoy</a><br><br>
+            <a href="https://twitter.com/tkardi">@tkardi</a><br>
+            <a href="mailto:tonis.kardi@gmail.com">tonis.kardi@gmail.com</a>
+				</section>
+			</div>
+		</div>
+
+		<script src="https://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.min.js"></script>
+
+		<script>
+			// More info https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				history: true,
+
+				// More info https://github.com/hakimel/reveal.js#dependencies
+				dependencies: [
+					{ src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js' },
+					{ src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js' },
+					{ src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true },
+					{ src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
