@@ -329,7 +329,7 @@ CREATE OR REPLACE FUNCTION public.split_line_multipoint(
     blade geometry)
   RETURNS geometry AS
 $BODY$
-    -- this function is a wrapper around the function ST_Split 
+    -- this function is a wrapper around the function ST_Split
     -- to allow splitting multilines with multipoints
     --
     DECLARE
@@ -350,7 +350,7 @@ $BODY$
             RETURN NULL;
         END IF;
 
-        result := input_geom;           
+        result := input_geom;
         -- Loop on all the points in the blade
         FOR simple_blade IN SELECT (ST_Dump(ST_CollectionExtract(blade, 1))).geom
         LOOP
@@ -364,7 +364,7 @@ $BODY$
   COST 100;
 ALTER FUNCTION public.split_line_multipoint(geometry, geometry)
   OWNER TO postgres;
-comment on function public.split_line_multipoint(geometry, geometry) is 
+comment on function public.split_line_multipoint(geometry, geometry) is
     'Function by http://gis.stackexchange.com/users/564/rcoup posted @ http://gis.stackexchange.com/a/112317';
 
 
@@ -528,7 +528,7 @@ with
         select
             clock_timestamp()::date AS cd,
             to_char(clock_timestamp(), 'hh24:mi:ss'::text) AS ct,
-            date_part('dow'::text, clock_timestamp()) AS d
+            date_part('dow'::text, clock_timestamp()) + 1 AS d
     ),
     cal as (
         select
@@ -546,7 +546,7 @@ with
                 c.thursday,
                 c.friday,
                 c.saturday,
-                c.sunday])[date_part('dow'::text, curtime.cd)] = true
+                c.sunday])[curtime.d] = true
         ),
         startstop as (
             select
