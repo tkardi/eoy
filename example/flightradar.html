@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="et">
+  <head>
+    <meta charset="utf-8">
+    <title>Air traffic map</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-realtime/2.0.0/leaflet-realtime.min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.min.js" type="text/javascript"></script>
+    <style>
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+        }
+        .aeroplane-visible {
+            background: #109856;
+            border: none;
+            opacity: 0.0;
+        }
+        .aeroplane-visible {
+            background: #109856;
+            border: none;
+            opacity: 1.0;
+        }
+        .aeroplane-visible.end{
+            transition: opacity 4s ease-in-out;
+            opacity: 0.1;
+        }
+        .radar-hand {
+            filter: url(#f3);
+        }
+    </style>
+  </head>
+  <body>
+    <div id="map">
+        <svg height="140" width="140">
+          <defs>
+            <filter id="f3" x="0" y="0" width="200%" height="200%">
+              <feGaussianBlur result="blurOut" in="SourceGraphic" stdDeviation="5" />
+            </filter>
+          </defs>
+        </svg>
+    </div>
+    <script>
+        var center = [58.65, 25.06];
+        var map = L.map('map').setView(center, 7),
+            // air traffic locations layer
+            realtime = L.realtime('https://tkardi.ee/current/flightradar/?format=json', {
+                interval: 10 * 1000,
+                getFeatureId: function(feature) {
+                    return feature.id;
+                },
+                pointToLayer: function(feature, latlng) {
+                    var marker = L.marker(latlng, {
+                        icon: L.divIcon({
+                            className:'aeroplane',
+                            iconSize: [10,10]
+                        }),
+                        riseOnHover: true
+                    }).bindTooltip(
+                        '<b>{callsign}</b><br>Alt: {geo_altitude} m @ {velocity} m/s'.replace(
+                            L.Util.templateRe, function (str, key) {
+                                var value = feature.properties[key];
+                                if (value === undefined || value == null) {
+                                    value = 'N/A';
+                                } else if (typeof value === 'function') {
+                                    value = value(data);
+                                }
+                                return value;
+                            }),
+                        {
+                            permanent: false, opacity: 0.7}
+                    );
+                    return marker;
+                },
+                pointInPolygon: function (latlng, latlngs) {
+                    // taken with slight modifications from
+                    // https://github.com/substack/point-in-polygon/blob/master/index.js
+
+                    var x = latlng.lng, y = latlng.lat;
+
+                    var inside = false;
+                    for (var i = 0, j = latlngs.length - 1; i < latlngs.length; j = i++) {
+                        var xi = latlngs[i].lng, yi = latlngs[i].lat;
+                        var xj = latlngs[j].lng, yj = latlngs[j].lat;
+
+                        var intersect = ((yi > y) != (yj > y))
+                            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                        if (intersect) inside = !inside;
+                    }
+
+                    return inside;
+                },
+                onEachFeature: function(feature, layer) {
+                    layer.on({
+                        click: function (e) {
+                            follow_layer_id = e.target.feature.id;
+                            map.panTo(e.target.getLatLng());
+                        },
+                    });
+                }
+            }).addTo(map);
+
+        var radar = L.geoJSON(
+            {"type":"LineString", "coordinates": [[25.06, 58.65], [25.06, 59.82]]}, {
+            onEachFeature : function(feature, layer) {
+                var rings = [
+                    L.circle([58.65, 25.06], {radius: 50000, fill: false, weight: 0.75, color: '#808080'}).addTo(map),
+                    L.circle([58.65, 25.06], {radius: 100000, fill: false, weight: 0.75, color: '#808080'}).addTo(map),
+                    L.circle([58.65, 25.06], {radius: 150000, fill: false, weight: 0.75, color: '#808080'}).addTo(map),
+                    L.circle([58.65, 25.06], {radius: 200000, fill: false, weight: 0.75, color: '#808080'}).addTo(map),
+                    L.circle([58.65, 25.06], {radius: 250000, fill: false, weight: 0.75, color: '#808080'}).addTo(map)
+                ];
+
+                var sector = {
+                    type:"Polygon",
+                    coordinates: [ [
+                        feature.coordinates[0], feature.coordinates[1],
+                        feature.coordinates[1], feature.coordinates[0]]]}
+                var l2 = L.geoJSON(
+                    sector, {
+                    style: function(feature){
+                        return {opacity:0.75, color: '#109856', weight:0.2, className:'radar-hand'}
+                    }
+                }).addTo(map);
+                var arclength = 2;
+                var sumangle = 360;
+                var radius = 550000;
+                var xy1 = map.options.crs.project(L.latLng([58.65, 25.06]))
+                setInterval(function(){
+                    if (sumangle >= 360) {
+                        sumangle = 0;
+                    } else {
+                        sumangle += arclength;
+                    }
+                    var latlngs = layer.getLatLngs();
+                    var prev = l2.getLayers()[0].getLatLngs();
+                    latlngs[1] = map.options.crs.unproject(
+                        L.point([
+                            xy1.x + Math.sin(sumangle * Math.PI / 180) * radius,
+                            xy1.y + Math.cos(sumangle * Math.PI / 180) * radius
+                        ])
+                    );
+                    prev[0][1] = map.options.crs.unproject(
+                        L.point([
+                            xy1.x + Math.sin((sumangle - 5 * arclength) * Math.PI / 180) * radius,
+                            xy1.y + Math.cos((sumangle - 5 * arclength) * Math.PI / 180) * radius
+                        ])
+                    );
+                    next = [prev[0][0], latlngs[1], prev[0][1], prev[0][0]];
+                    l2.getLayers()[0].setLatLngs(next);
+                    layer.setLatLngs(latlngs).bringToFront();
+                    realtime.getLayers().forEach(function(layer){
+                        var latlng = layer._latlng;
+                        if (realtime.options.pointInPolygon(latlng, next)) {
+                            L.DomUtil.removeClass(layer._icon, 'end');
+                            L.DomUtil.addClass(layer._icon, 'aeroplane-visible');
+                            layer.openTooltip();
+                            setTimeout(function(){
+                                layer.closeTooltip();
+                            }, 5000);
+                        } else {
+                            L.DomUtil.addClass(layer._icon, 'end');
+
+                        }
+                    })
+                }, 50);
+            },
+            style: function(feature) {
+                return {color: '#109856', weight: 3, opacity:0.5}
+            }
+
+        }).addTo(map);
+
+
+        L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+            attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+        }).addTo(map);
+
+        map.attributionControl.addAttribution(
+            '<br>Marker animation: <a href="https://github.com/perliedman/leaflet-realtime">Leaflet Realtime</a>'
+        );
+        map.attributionControl.addAttribution(
+            '<br>Air traffic location data from <a href="http://www.opensky-network.org">The OpenSky Network</a>\'s public <a href="https://opensky-network.org/apidoc/">API</a>'
+        );
+    </script>
+  </body>
+</html>
