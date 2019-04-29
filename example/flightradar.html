@@ -1,56 +1,67 @@
 <!DOCTYPE html>
-<html lang="et">
-  <head>
-    <meta charset="utf-8">
-    <title>Air traffic map</title>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.js" type="text/javascript"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-realtime/2.0.0/leaflet-realtime.min.js" type="text/javascript"></script>
-    <style>
-        #map {
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-        }
-        .aeroplane-visible {
-            background: #109856;
-            border: none;
-            opacity: 0.0;
-        }
-        .aeroplane-visible {
-            background: #109856;
-            border: none;
-            opacity: 1.0;
-        }
-        .aeroplane-visible.end{
-            transition: opacity 5s ease-in-out;
-            opacity: 0.01;
-        }
-        .radar-hand {
-            filter: url(#f3);
-        }
-    </style>
-  </head>
-  <body>
-    <div id="map">
-        <svg height="140" width="140">
-          <defs>
-            <filter id="f3" x="0" y="0" width="200%" height="200%">
-              <feGaussianBlur result="blurOut" in="SourceGraphic" stdDeviation="5" />
-            </filter>
-          </defs>
-        </svg>
-    </div>
-    <script>
-        var center = [58.65, 25.06],
-            radarbeam = {"type":"LineString", "coordinates": [[center[1], center[0]], [center[1], center[0]]]};
-        var map = L.map('map').setView(center, 7),
-            // air traffic locations layer,
-            // should actually request when the "radar beam" is pointing N e.g
-            // but we'll go with L.Realtime for the moment.
-            realtime = L.realtime('https://tkardi.ee/current/flightradar/?format=json', {
+<html>
+    <!-- The following HTML page together with the accompanying
+    javascript is published under the Unlicense.
+
+    SPDX-License-Identifier: Unlicense
+    -->
+    <head>
+        <meta charset="utf-8">
+        <title>Air traffic map</title>
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.css"/>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.js"
+            type="text/javascript">
+        </script>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-realtime/2.0.0/leaflet-realtime.min.js"
+            type="text/javascript">
+        </script>
+        <style>
+            #map {
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                right: 0;
+            }
+            .aeroplane {
+                opacity: 0;
+            }
+            .aeroplane-visible {
+                background: #109856;
+                border: none;
+                opacity: 1.0;
+            }
+            .aeroplane-visible.end{
+                transition: opacity 5s ease-in-out;
+                opacity: 0.01;
+            }
+            .radar-hand {
+                filter: url(#blur);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map">
+            <svg height="140" width="140">
+                <defs>
+                    <filter id="blur" x="0" y="0" width="100%" height="100%">
+                        <feGaussianBlur result="blurOut" in="SourceGraphic" stdDeviation="5" />
+                    </filter>
+                </defs>
+            </svg>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-realtime/2.0.0/leaflet-realtime.min.js" type="text/javascript"></script>
+        <script>
+            var center = [58.65, 25.06],
+                radarbeam = {"type":"LineString", "coordinates": [[center[1], center[0]], [center[1], center[0]]]};
+            var map = L.map('map').setView(center, 7);
+
+            var realtime = L.realtime('https://tkardi.ee/current/flightradar', {
                 interval: 10 * 1000,
                 getFeatureId: function(feature) {
                     return feature.id;
@@ -79,9 +90,10 @@
                     return marker;
                 },
                 pointInPolygon: function (latlng, latlngs) {
-                    // taken with slight modifications from
+                    // with a slight modifications taken from
                     // https://github.com/substack/point-in-polygon/blob/master/index.js
-
+                    // which is licensed under the MIT license
+                    // https://github.com/substack/point-in-polygon/blob/master/LICENSE
                     var x = latlng.lng, y = latlng.lat;
 
                     var inside = false;
@@ -93,173 +105,173 @@
                             && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
                         if (intersect) inside = !inside;
                     }
-
                     return inside;
-                },
-                onEachFeature: function(feature, layer) {
-                    layer.on({
-                        click: function (e) {
-                            follow_layer_id = e.target.feature.id;
-                            map.panTo(e.target.getLatLng());
-                        },
-                    });
                 }
             }).addTo(map);
 
-        var radar = L.geoJSON(
-            radarbeam, {
-            onEachFeature : function(feature, layer) {
-                var _center = [feature.coordinates[0][1], feature.coordinates[0][0]];
-                var xy1 = map.options.crs.project(L.latLng(_center));
-                var radius = 550000;
-                var arclength = 2;
-                var sumangle = 360;
-
-                // draw radar's "bulls-eye"
-                var rings = [
-                    L.circle(_center, {radius: 50000, fill: false, weight: 0.75, color: '#808080'}).addTo(map),
-                    L.circle(_center, {radius: 100000, fill: false, weight: 1.5, color: '#808080'}).addTo(map),
-                    L.circle(_center, {radius: 150000, fill: false, weight: 0.75, color: '#808080'}).addTo(map),
-                    L.circle(_center, {radius: 200000, fill: false, weight: 1.5, color: '#808080'}).addTo(map),
-                    L.circle(_center, {radius: 250000, fill: false, weight: 0.75, color: '#808080'}).addTo(map)
-                ];
-                var right = L.point(xy1).add([550000, 0]),
-                    left = L.point(xy1).subtract([550000, 0]),
-                    top = L.point(xy1).add([0, 550000]),
-                    bottom = L.point(xy1).subtract([0, 550000])
-                    ne = [
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(45 * Math.PI / 180) * 75000,
-                            xy1.y + Math.cos(45 * Math.PI / 180) * 75000
-                        ])),
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(45 * Math.PI / 180) * radius,
-                            xy1.y + Math.cos(45 * Math.PI / 180) * radius
-                        ]))
-                    ],
-                    se = [
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(135 * Math.PI / 180) * 75000,
-                            xy1.y + Math.cos(135 * Math.PI / 180) * 75000
-                        ])),
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(135 * Math.PI / 180) * radius,
-                            xy1.y + Math.cos(135 * Math.PI / 180) * radius
-                        ]))
-                    ],
-                    sw = [
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(225 * Math.PI / 180) * 75000,
-                            xy1.y + Math.cos(225 * Math.PI / 180) * 75000
-                        ])),
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(225 * Math.PI / 180) * radius,
-                            xy1.y + Math.cos(225 * Math.PI / 180) * radius
-                        ]))
-                    ],
-                    nw = [
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(315 * Math.PI / 180) * 75000,
-                            xy1.y + Math.cos(315 * Math.PI / 180) * 75000
-                        ])),
-                        map.options.crs.unproject(L.point([
-                            xy1.x + Math.sin(315 * Math.PI / 180) * radius,
-                            xy1.y + Math.cos(315 * Math.PI / 180) * radius
-                        ]))
-                    ];
-
-                var crosshairs = [
-                    L.polyline([map.options.crs.unproject(left), map.options.crs.unproject(right)], {weight: 1.5, color: '#808080'}).addTo(map),
-                    L.polyline([map.options.crs.unproject(top), map.options.crs.unproject(bottom)], {weight: 1.5, color: '#808080'}).addTo(map),
-                    L.polyline(ne, {weight: 0.75, color: '#808080'}).addTo(map),
-                    L.polyline(se, {weight: 0.75, color: '#808080'}).addTo(map),
-                    L.polyline(sw, {weight: 0.75, color: '#808080'}).addTo(map),
-                    L.polyline(nw, {weight: 0.75, color: '#808080'}).addTo(map)
-                ];
-
-                // place some labels for angles
-                var anglelabels = [
-                    L.polyline([map.options.crs.unproject(left), map.options.crs.unproject(left)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b>270° </b>', {permanent: true, opacity: 0.7, direction: 'left'}).openTooltip(),
-                    L.polyline([map.options.crs.unproject(right), map.options.crs.unproject(right)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b> 90°</b>', {permanent: true, opacity: 0.7, direction: 'right'}).openTooltip(),
-                    L.polyline([map.options.crs.unproject(top), map.options.crs.unproject(top)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b>0°</b>', {permanent: true, opacity: 0.7, direction: 'top'}).openTooltip(),
-                    L.polyline([map.options.crs.unproject(bottom), map.options.crs.unproject(bottom)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b>180°</b>', {permanent: true, opacity: 0.7, direction: 'bottom'}).openTooltip()
-                ];
-
-                // sector is the slice of circle we'll use as a "beam shadow"
-                // aswell use it to test point-in-polygon for aircraft icon fade-out
-                var sector = {
-                    type:"Polygon",
-                    coordinates: [ [
-                        feature.coordinates[0], feature.coordinates[1],
-                        feature.coordinates[1], feature.coordinates[0]]]}
-                var l2 = L.geoJSON(
-                    sector, {
-                    style: function(feature){
-                        return {opacity:0.75, color: '#109856', weight:0.2, className:'radar-hand'}
-                    }
-                }).addTo(map);
-
-                setInterval(function(){
-                    // animate "radar beam"
-                    if (sumangle >= 360) {
-                        sumangle = 0;
-                    } else {
-                        sumangle += arclength;
-                    }
-                    var latlngs = layer.getLatLngs();
-                    var prev = l2.getLayers()[0].getLatLngs();
-                    latlngs[1] = map.options.crs.unproject(
-                        L.point([
-                            xy1.x + Math.sin(sumangle * Math.PI / 180) * radius,
-                            xy1.y + Math.cos(sumangle * Math.PI / 180) * radius
-                        ])
-                    );
-                    prev[0][1] = map.options.crs.unproject(
-                        L.point([
-                            xy1.x + Math.sin((sumangle - 5 * arclength) * Math.PI / 180) * radius,
-                            xy1.y + Math.cos((sumangle - 5 * arclength) * Math.PI / 180) * radius
-                        ])
-                    );
-                    next = [prev[0][0], latlngs[1], prev[0][1], prev[0][0]];
-                    l2.getLayers()[0].setLatLngs(next);
-                    layer.setLatLngs(latlngs).bringToFront();
-                    realtime.getLayers().forEach(function(layer){
-                        var latlng = layer._latlng;
-                        if (realtime.options.pointInPolygon(latlng, next)) {
-                            // remove fade-out
-                            L.DomUtil.removeClass(layer._icon, 'end');
-                            // make dot visible
-                            L.DomUtil.addClass(layer._icon, 'aeroplane-visible');
-                            // and set animation for tooltip
-                            layer.openTooltip();
-                            setTimeout(function(){
-                                layer.closeTooltip();
-                            }, 5000);
-                        } else {
-                            // start fade-out
-                            L.DomUtil.addClass(layer._icon, 'end');
-
+            // Add polar craticule
+            var rings = [];
+            [50000, 100000, 150000, 200000, 250000].forEach(function(r) {
+                rings.push(
+                    L.circle(
+                        center, {
+                            radius: r,
+                            fill: false,
+                            weight: r % 100000 == 0 ? 1.75 : 0.75,
+                            color: '#808080'
                         }
-                    })
-                }, 50);
-            },
-            style: function(feature) {
-                return {color: '#109856', weight: 3, opacity:0.5}
-            }
+                    ).addTo(map)
+                );
+            });
 
-        }).addTo(map);
+            var xy1 = map.options.crs.project(L.latLng(center)),
+                radius = 550000;
+            var right = L.point(xy1).add([radius, 0]),
+                left = L.point(xy1).subtract([radius, 0]),
+                tops = L.point(xy1).add([0, radius]),
+                bottom = L.point(xy1).subtract([0, radius]);
+
+            var crosshairs = [
+                L.polyline([map.options.crs.unproject(left), map.options.crs.unproject(right)], {weight: 1.5, color: '#808080'}).addTo(map),
+                L.polyline([map.options.crs.unproject(tops), map.options.crs.unproject(bottom)], {weight: 1.5, color: '#808080'}).addTo(map),
+            ];
+
+            [45, 135, 225, 315].forEach(function(angle) {
+                crosshairs.push(
+                    L.polyline([
+                        map.options.crs.unproject(L.point([
+                            xy1.x + Math.sin(angle * Math.PI / 180) * 75000,
+                            xy1.y + Math.cos(angle * Math.PI / 180) * 75000
+                        ])),
+                        map.options.crs.unproject(L.point([
+                            xy1.x + Math.sin(angle * Math.PI / 180) * radius,
+                            xy1.y + Math.cos(angle * Math.PI / 180) * radius
+                        ]))
+                    ],
+                        {weight: 0.75, color: '#808080'}
+                    ).addTo(map)
+                );
+            });
+
+            var anglelabels = [
+                L.polyline([map.options.crs.unproject(left), map.options.crs.unproject(left)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b>270° </b>', {permanent: true, opacity: 0.7, direction: 'left'}).openTooltip(),
+                L.polyline([map.options.crs.unproject(right), map.options.crs.unproject(right)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b> 90°</b>', {permanent: true, opacity: 0.7, direction: 'right'}).openTooltip(),
+                L.polyline([map.options.crs.unproject(tops), map.options.crs.unproject(tops)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b>0°</b>', {permanent: true, opacity: 0.7, direction: 'top'}).openTooltip(),
+                L.polyline([map.options.crs.unproject(bottom), map.options.crs.unproject(bottom)], {weight: 0.1, color: '#fffff', opacity:0}).addTo(map).bindTooltip('<b>180°</b>', {permanent: true, opacity: 0.7, direction: 'bottom'}).openTooltip()
+            ];
+
+            // add a revolving "radar-hand"
+            var radar = L.geoJSON(
+                radarbeam, {
+                onEachFeature : function(feature, layer) {
+                    var arclength = 2;
+                    var sumangle = 360;
+
+                    // sector is the slice of circle we'll use as a "beam shadow"
+                    // aswell use it to test point-in-polygon for aircraft icon fade-out
+                    var sector = {
+                        type:"Polygon",
+                        coordinates: [ [
+                            feature.coordinates[0], feature.coordinates[1],
+                            feature.coordinates[1], feature.coordinates[0]]]
+                    };
+
+                    var beamshadow = L.geoJSON(
+                        sector, {
+                        style: function(feature){
+                            return {
+                                opacity:0.75,
+                                color: '#109856',
+                                weight:0.2,
+                                className:'radar-hand'
+                            }
+                        }
+                    }).addTo(map);
+
+                    setInterval(function(){
+                        // animate "radar beam"
+                        if (sumangle >= 360) {
+                            sumangle = 0;
+                        } else {
+                            sumangle += arclength;
+                        }
+                        var beamlatlngs = layer.getLatLngs(),
+                            beamshadowlatlngs = beamshadow.getLayers()[0].getLatLngs();
+
+                        // calculate a new location for the beam linestring.
+
+                        beamlatlngs[1] = map.options.crs.unproject(
+                            L.point([
+                                xy1.x + Math.sin(sumangle * Math.PI / 180) * radius,
+                                xy1.y + Math.cos(sumangle * Math.PI / 180) * radius
+                            ])
+                        );
+
+                        // and a new location for the trailing corner of the beam shadow
+
+                        beamshadowlatlngs[0][1] = map.options.crs.unproject(
+                            L.point([
+                                xy1.x + Math.sin((sumangle - 5 * arclength) * Math.PI / 180) * radius,
+                                xy1.y + Math.cos((sumangle - 5 * arclength) * Math.PI / 180) * radius
+                            ])
+                        );
+
+                        next = [beamshadowlatlngs[0][0], beamlatlngs[1], beamshadowlatlngs[0][1], beamshadowlatlngs[0][0]];
+                        beamshadow.getLayers()[0].setLatLngs(next);
+                        layer.setLatLngs(beamlatlngs).bringToFront();
+
+                        realtime.getLayers().forEach(function(layer){
+                            var latlng = layer.getLatLng(),
+                                el = layer.getElement();
+
+                            // test if the ircraft location is within the beam-shadow sector
+                            if (realtime.options.pointInPolygon(latlng, next)) {
+                                // remove fade-out if it exists
+                                L.DomUtil.removeClass(el, 'end');
+
+                                // make icon visible
+                                L.DomUtil.addClass(el, 'aeroplane-visible');
+
+                                // and set animation for tooltip
+                                layer.openTooltip();
+                                setTimeout(function(){
+                                    layer.closeTooltip();
+                                }, 5000);
+                            } else {
+                                // otherwise start fade-out
+                                // this should kick in only if the classname is
+                                // not already there
+                                L.DomUtil.addClass(el, 'end');
+                            }
+                        });
+
+                    }, 50);
+                },
+                style: function(feature) {
+                    return {color: '#109856', weight: 3, opacity:0.5}
+                }
+            }).addTo(map);
+
+            // Stamen's Toner basemap
+            L.tileLayer(
+                'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+                    attribution: 'Map tiles by <a href="http://stamen.com">' +
+                        'Stamen Design</a>, under' +
+                        '<a href="http://creativecommons.org/licenses/by/3.0">' +
+                        'CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">' +
+                        'OpenStreetMap</a>, under' +
+                        '<a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+                }
+            ).addTo(map);
 
 
-        L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
-            attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
-        }).addTo(map);
-
-        map.attributionControl.addAttribution(
-            '<br>Marker animation: <a href="https://github.com/perliedman/leaflet-realtime">Leaflet Realtime</a>'
-        );
-        map.attributionControl.addAttribution(
-            '<br>Air traffic location data from <a href="http://www.opensky-network.org">The OpenSky Network</a>\'s public <a href="https://opensky-network.org/apidoc/">API</a>'
-        );
-    </script>
-  </body>
+            // and attribution
+            map.attributionControl.addAttribution(
+                '<br>Marker animation: <a href="https://github.com/perliedman/leaflet-realtime">Leaflet Realtime</a>'
+            );
+            map.attributionControl.addAttribution(
+                '<br>Air traffic location data from <a href="http://www.opensky-network.org">The OpenSky Network</a>\'s public <a href="https://opensky-network.org/apidoc/">API</a>'
+            );
+        </script>
+    </body>
 </html>
