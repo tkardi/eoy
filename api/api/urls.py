@@ -27,4 +27,10 @@ urlpatterns = [
     url(
         r'^current/trips/$', views.index,
         name='trips-list'),
+    url(
+        r'^current/flightradar/$', views.flightradar,
+        name='flights-list'),
+    url(
+        r'^current/traingps/$', views.traingps,
+        name='trains-list'),
 ]
