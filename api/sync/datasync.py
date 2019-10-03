@@ -4,7 +4,8 @@ import psycopg2
 import requests
 import shutil
 import tempfile
-import unicodecsv
+import csv #unicodecsv
+import time
 import zipfile
 
 from io import StringIO
@@ -13,51 +14,54 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'api.settings'
 
+import django
+django.setup()
+
+
 from django.db import connections as CONNECTIONS
 from conf.settings import DBTABLES, DBSCHEMA
 
 ZIPURL = 'http://www.peatus.ee/gtfs/gtfs.zip'
 # FIXME: ZIPURL should be in conf.settings aswell!
 
-class FilteredCSVFile(unicodecsv.DictReader, object):
+class FilteredCSVFile(csv.DictReader, object):
     """Local helper for reading only specified columns from a csv file.
 
     It's assumed that row number 1 is the header row.
     """
-    def __init__(self, csvfile, fieldnames=None, restkey=None,
-                 restval=None, dialect='excel', encoding='utf-8',
-                 errors='strict', *args, **kwargs):
+    def __init__(
+        self, csvfile, fieldnames=None, restkey=None, restval=None,
+        dialect='excel', *args, **kwargs):
+        self._header = self.get_csv_header(csvfile)
         super(FilteredCSVFile, self).__init__(
-            csvfile, self.get_csv_header(csvfile), restkey, restval, dialect,
-            encoding, errors, *args, **kwargs)
+            csvfile, self._header , restkey, restval,
+            dialect, *args, **kwargs)
         self._fieldnames = fieldnames
 
     def get_csv_header(self, fp):
-        header = fp.next().strip('\n').split(',')
-        return fp.seek(0)
+        return fp.readline().strip('\n').split(',')
 
     def cleanup(self, obj):
         if obj == None or obj == "":
-            obj = '\N'
-        if isinstance(obj, unicode):
+            obj = '\\N'
+        if isinstance(obj, str):
             obj = obj.replace('\t', ' ')
-            obj = '"%s"' % obj
+            if ',' in obj:
+                obj = '"%s"' % obj
         return obj
 
     def next(self):
-        row = super(FilteredCSVFile, self).next()
-        return ','.join([self.cleanup(row[k]) for k in self._fieldnames])
+        row = dict(zip(self._header, next(self.reader)))
+        return '\t'.join(['%s' % self.cleanup(row[k]) for k in self._fieldnames])
 
     def readline(self):
         return self.next()
 
     def read(self):
         o = io.StringIO()
-        encoding = self.reader.encoding
         try:
             while True:
                 row = self.next()
-                #o.write(u'%s\n' % (row.encode(encoding), ))
                 o.write(row)
                 o.write(u'\n')
         except StopIteration as si:
@@ -132,10 +136,10 @@ def run():
     try:
         # go get all csv files extracted at to_path.
         # local
-        to_path = '/home/tkardi/tmp/gtfs'
+        # to_path = 'tmp'
         # the real thing
-        #to_path = download_zip(ZIPURL, tempfile.mkdtemp(prefix='eoy_'))
-        print to_path
+        to_path = download_zip(ZIPURL, tempfile.mkdtemp(prefix='eoy_'))
+        print(to_path)
         # loop through required files and look for a matching table
         # in the database
         # if found truncate it and insert new rows from the csv file
@@ -151,7 +155,7 @@ def run():
                 db_cols = _db_check_table(cursor, DBSCHEMA, dbtable)
                 # check if file present and get csv header
                 fp, fp_cols = _fs_check_csv(to_path, dbtable)
-                print '%s.%s' %(DBSCHEMA, dbtable),
+                print ('%s.%s' %(DBSCHEMA, dbtable))
                 # get intersection of db_cols and fp_cols (i.e cols that
                 # are present in both)
                 cols = _get_insert_cols(db_cols, fp_cols, DBSCHEMA, dbtable)
@@ -159,13 +163,12 @@ def run():
                 st_trunc = _db_prepare_truncate(DBSCHEMA, dbtable)
                 cursor.execute(st_trunc)
                 # and fill anew ...
-                with open(fp, 'r') as f:
-                    csv = FilteredCSVFile(f, fieldnames=cols)
+                with open(fp, encoding='utf-8') as f:
+                    fcsv = FilteredCSVFile(f, fieldnames=cols, quotechar='"')
                     tab = '%s.%s' % (DBSCHEMA, dbtable)
-                    st_copy = """copy %s (%s) from stdin with null '\N' delimiter ',' csv header encoding 'UTF8'""" % (tab, ','.join(cols))
-                    cursor.copy_expert(st_copy, io.StringIO(csv.read()))
-                    print cursor.rowcount,
-                print 'done %s' % fp
+                    cursor.copy_from(io.StringIO(fcsv.read()), tab, sep='\t', columns=cols)
+                    print(cursor.rowcount)
+                print('done %s' % fp)
     except:
         raise
     # FIXME: This is the place for calling data prep functions in the database.

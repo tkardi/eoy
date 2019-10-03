@@ -3,11 +3,11 @@ from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from models import CurrentLocations
-import serializers
+from eoy.models import CurrentLocations
+from eoy import serializers
 
-from proxy import flightradar as f
-from proxy import traingps as t
+from eoy.proxy import flightradar as f
+from eoy.proxy import traingps as t
 
 # Create your views here.
 @api_view(('GET', ))

@@ -1,6 +1,6 @@
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from models import CurrentLocations
+from eoy.models import CurrentLocations
 
 class LocationTableSerializer(GeoFeatureModelSerializer):
     class Meta:
