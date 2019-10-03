@@ -33,7 +33,7 @@ The process of getting this thing up and running is currently a bit tedious,
 but we'll live with that for now.
 
 ## Database
-Expect presence of PostgreSQL (9.4) / PostGIS (2.1). As a privileged user run
+Expects presence of PostgreSQL (9.4+) / PostGIS (2.1+). As a privileged user run
 [db/init.sql](db/init.sql). This will create a database schema called `gtfs`,
 a few tables into it (`gtfs.agency`, `gtfs.calendar`, `gtfs.routes`,
 `gtfs.shapes`, `gtfs.stop_times`, `gtfs.stops`, `gtfs.trips`) and three
@@ -62,7 +62,8 @@ $ pip install django==2.2
 $ pip install djangorestframework
 $ pip install pip install djangorestframework-gis
 ```
-or simply use the [`requirements.txt`](api/requirements.txt)
+or simply use the [`requirements.txt`](api/requirements.txt) because there are
+some other things required aswell.
 
 ## Loading data
 The configuration that is necessary for loading the data is described in
@@ -71,11 +72,9 @@ you need to run [api/sync/datasync.py](api/sync/datasync.py)
 
 `$ python datasync.py`
 
-_FIXME: describe the necessary steps for data pre-processing. We need to move
-all pre-processing activities from db/init.sql aswell (a separate file that
-we could execute from datasync.py? or a function in the database?)_
-
-Start up Django's development server with
+And after the loading has finished, again, as a privileged user run
+[db/preprocess.sql](db/preprocess.sql). Then we can fire up Django's
+development server with
 
 `$ python manage.py runserver`
 
