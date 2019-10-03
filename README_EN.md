@@ -50,18 +50,19 @@ mind should not run whatever things in a database ;)**
 Once the database tables and functions have been set up, data can be inserted.
 
 ## web API
-But still, before data can be loaded to the database, Django (1.8 is the
+But still, before data can be loaded to the database, Django (2.2 is the
 current LTS version), Django Rest Framework ja Django Rest Framework GIS
 should be installed. We need Django for data loading as we'll use Django's
 db connection factory.
 
 You can simply `pip` them
 
-`$ pip install django==1.8`
-
-`$ pip install rest_framework`
-
-`$ pip install rest_framework_gis`
+```
+$ pip install django==2.2
+$ pip install djangorestframework
+$ pip install pip install djangorestframework-gis
+```
+or simply use the [`requirements.txt`](api/requirements.txt)
 
 ## Loading data
 The configuration that is necessary for loading the data is described in
