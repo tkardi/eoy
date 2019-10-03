@@ -1,95 +1,104 @@
 # eoy
-Eesti otsib ühistransporti.
+Estonia looking for public transit.
 
-See on eestikeelne kokkuvõte but You can also [read me in English](README_EN.md)
+# Purpose
+The purpose of this project is to offer a possibility for tracking
+public transit vehicles in "pseudo-real-time". The locations are
+calculated from [the Estonian Road Administration's compiled GTFS static](
+https://transitfeeds.com/p/maanteeamet/510) [open data](
+https://www.mnt.ee/eng/public-transportation/public-transport-information-system)
+(or similar time-table data) and have no meaning whatsoever in reality.
 
-# Eesmärk
-Selle projekti eesmärgiks on pakkuda võimalust ühistranspordivahendite
-kuvamiseks kaardil pseudo-reaalajas. Asukohad on arvutatavad [Maanteeameti GTFS](
-https://transitfeeds.com/p/maanteeamet/510) [avaandmete](
-https://www.mnt.ee/et/uhistransport/uhistranspordi-infosusteem) (või sarnaste)
-andmete põhjal ning ei oma tegelikkuses mingisugust seost reaalse situatsiooniga.
+Nevertheless (web-)map-makers might be interested in the current whereabouts of
+public transit at any given time. As these locations are based on calculations
+not GPS data they should under no circumstances be used as part of a critical
+decision process. But maybe it's still interesting to see buses-trains rattle
+along on the map.
 
-Sellegipoolest võivad (veebi-)kaardikoostajatele huvi pakkuda just hetkel liikumas
-olevate ühistranspordivahedite asukohad. Kuna tegu on arvutuslike, mitte GPS-põhiste
-asukohtadega, siis ei sobi see kindlasti mõne kriitilise otsustusprotsessi osaks,
-aga võib-olla on sellegipoolest huvitav busse-ronge mööda kaarti ringi
-vuramas näha :)
+Current locations are returned as a [GeoJSON](
+https://datatracker.ietf.org/doc/rfc7946/) `FeatureCollection` using a HTTP GET
+query to the web API.
 
-Viimase ajahetke teadaolevad ühistranspordivahedite asukohad tagastakse veebi-API
-HTTP GET päringu peale. Päringu vastuseks on [GeoJSONi spetsifikatsioonile](
-https://datatracker.ietf.org/doc/rfc7946/) vastav `FeatureCollection`.
-
-Näidist "real-time dashboard"-stiilis eelvaatest saab näha [siin](
+An example "real-time dashboard"-style preview can be checked out [here](
 https://tkardi.github.io/eoy/example/current.html)
 
-# Paigaldus
-## Andmebaas
-Eeldame PostgreSQL (9.4) / PostGIS (2.1) olemasolu. Käivita admin-kasutajana
-andmebaasis [db/init.sql](db/init.sql). See loob andmebaasi `gtfs`-nimelise
-schema ning sellesse hunniku tabeleid, mis vajalikud vajalike GTFS andmete
-hoidmiseks (`gtfs.agency`, `gtfs.calendar`, `gtfs.routes`, `gtfs.shapes`,
-`gtfs.stop_times`, `gtfs.stops`, `gtfs.trips`), ning mõned funktsioonid
-aegade ja ruumikujudega ümberkäimiseks (`gtfs.get_current_impeded_time`,
-`gtfs.get_time_fraction`, `public.split_line_multipoint`).
+The name of the project is a word play on an Estonian television talent show
+title.
 
-**NB! Enne käivitamist loe siiski läbi, mida see sql fail sisaldab. Terve
-mõistus ei käivita oma andmebaasis suvalisi sql faile ;)**
+# How to get up and running
+The process of getting this thing up and running is currently a bit tedious,
+but we'll live with that for now.
 
-Kui andmestruktuurid ja funktsioonid on andmedbaasis loodud, võib sisse
-laadida andmed.
+## Database
+Expects presence of PostgreSQL (9.4+) / PostGIS (2.1+). As a privileged user run
+[db/init.sql](db/init.sql). This will create a database schema called `gtfs`,
+a few tables into it (`gtfs.agency`, `gtfs.calendar`, `gtfs.routes`,
+`gtfs.shapes`, `gtfs.stop_times`, `gtfs.stops`, `gtfs.trips`) and three
+functions for dealing with location calculation (`gtfs.get_current_impeded_time`,
+`gtfs.get_time_fraction`, `public.split_line_multipoint`). Credit for the
+last function goes to [rcoup](http://gis.stackexchange.com/users/564/rcoup)'s
+[StackExchange answer](http://gis.stackexchange.com/a/112317). With PostGIS 2.2
+this function will not be necessary anymore and `st_split(geometry, geometry)`
+can be used instead.
 
-## Veebi-API
-Kuid enne andmete laadimist paigalda Django (1.8 on LTS, suuremate versioonidega
-pole käitatud), Django Rest Framework ja Django Rest Framework GIS. Django
-olemasolu vajalik andmete laadimiseks. (miks?)
+**NB! Before running the sql file, please read carefully what it does. A sane
+mind should not run whatever things in a database ;)**
 
-Need on paigaldatavad `pip`iga
+Once the database tables and functions have been set up, data can be inserted.
 
-`$ pip install django==1.8`
+## web API
+But still, before data can be loaded to the database, Django (2.2 is the
+current LTS version), Django Rest Framework ja Django Rest Framework GIS
+should be installed. We need Django for data loading as we'll use Django's
+db connection factory.
 
-`$ pip install rest_framework`
+You can simply `pip` them
 
-`$ pip install rest_framework_gis`
+```
+$ pip install django==2.2
+$ pip install djangorestframework
+$ pip install pip install djangorestframework-gis
+```
+or simply use the [`requirements.txt`](api/requirements.txt) because there are
+some other things required aswell.
 
-## Andmete laadimine
-Andmete laadimiseks vajalikud seadistused on kirjeldatud
-[api/conf/settings.py](api/conf/settings.py) failis. Laadimiseks käivita
-[api/sync/datasync.py](api/sync/datasync.py)
+## Loading data
+The configuration that is necessary for loading the data is described in
+[api/conf/settings.py](api/conf/settings.py). To start the loading procedure
+you need to run [api/sync/datasync.py](api/sync/datasync.py)
 
 `$ python datasync.py`
 
-_FIXME: siin on vaja lahti kirjeldada ka andmete eeltöötluseks vajalikud sammud.
-Selleks vajalik kama on vaja db/init.sql failist ka välja tõsta (eraldi failiks,
-mille saaks datasync.py kaudu käivitada? Või siis andmebaasi funktsiooniks?)._
-
-Pane käima Django arendusserver
+And after the loading has finished, again, as a privileged user run
+[db/preprocess.sql](db/preprocess.sql). Then we can fire up Django's
+development server with
 
 `$ python manage.py runserver`
 
-ning suuna veebibrauser aadressile http://127.0.0.1:8000?format=json vastuseks
-peaks tulema
+Point your browser to http://127.0.0.1:8000?format=json and you should see a
+response:
 
 `{"message":"Nobody expects the spanish inquisition!"}`
 
-# Kasutusjuhised
-HTTP GET päringud
+# How to
+HTTP GET queries
 
-### Hetkel sõidusolev ühistransport
+### Current locations
 http://127.0.0.1:8000/current/locations?format=json
-Tagastab hetkel sõidusolevad ühistranspordi vahendid ja nende asukohad
-koos eelnenud ja järgnevate peatuste ning liiniinfoga.
+Returns currently active vehicles and their locations together
+with data on previous and next stops, and routes.
 
-### Hetkel sõidusolevad marsruudid
+### Current trips
 http://127.0.0.1:8000/current/trips?format=json
-Tagastab hetkel sõidusolevate marsruutide trajektoorid algpeatusest
-lõpp-peatusesse.
+Returns currently active trips as linestrings from the first stop of the
+trip to the last.
 
-### Veel midagi ???
-_FIXME: lisa veel päringuid_
+### something else ???
+_FIXME: more queries?_
 
-
-# Litsents
-Selle projekti kood on vabalt kasutatav [Unlicense](http://unlicense.org) litsentsi
-alusel. Kasutatavatel andmetel on oma kasutustingimused - jälgi neid ise. Antud
-projekt andmeid endid ei jaga.
+# License
+The code for this project is freely usable under the [Unlicense](
+http://unlicense.org). The data it uses has it's own license terms - you need to
+keep track of that yourself.
+_FIXME: need to set things straight with `public.split_line_multipoint` -
+this is work done by somebody else! Can we use it at all?_
