@@ -45,14 +45,14 @@
             follow_layer_id = undefined,
             // don't know types, let's decode from route colors.
             route_types = {
-                "#00A1DE": "Trolleybus",
-                "#8FD759": "Tram",
-                "#969696": "Rail",
+                "#1CCC48": "Trolleybus",
+                "#016E12": "Tram",
+                "#FF711D": "Rail",
                 "#DE2C42": "Bus (inner city)",
-                "#00933C": "Bus (county)",
-                "#F55ADC": "Route taxi",
-                "#FF6319": "Bus (inner city express)",
-                "#E6FA32": "Bus (long distance)",
+                "#3BB5DB": "Bus (county)",
+                "#094F82": "Bus (county commercial)",
+                "#FF6319": "Bus (inner city commercial)",
+                "#660000": "Bus (long distance)",
                 "#8BB4C5": "Ferry"
             },
             // vehicle locations layer
@@ -122,7 +122,7 @@
                 container = this.getContainer();
             for (var i=0; i < distinct.length; i++) {
                 var color = distinct[i],
-                    label = route_types[color];
+                    label = route_types[color.toUpperCase()];
                 body +=
                     '</br><span class="fa-stack fa-lg">' +
                     '<i class="fa fa-circle fa-stack-2x"></i>' +
