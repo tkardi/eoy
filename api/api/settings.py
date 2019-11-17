@@ -14,7 +14,8 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 from conf.settings import DEBUG, SECRET_KEY, ALLOWED_HOSTS, DB_USER, DB_PASSWORD
-from conf.settings import DB_NAME, SYNC_USER, SYNC_PASSWORD
+from conf.settings import DB_NAME, SYNC_USER, SYNC_PASSWORD, DB_HOST
+from conf.settings import INSTALLED_APPS_X
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,6 +37,8 @@ INSTALLED_APPS = (
     'rest_framework_gis',
     'eoy'
 )
+
+INSTALLED_APPS = INSTALLED_APPS + INSTALLED_APPS_X
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -76,7 +79,7 @@ DATABASES = {
     'default': {
         'NAME': DB_NAME,
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'HOST': 'localhost',
+        'HOST': DB_HOST,
         'USER': DB_USER,
         'PASSWORD': DB_PASSWORD,
         'PORT': '5432'
@@ -84,12 +87,54 @@ DATABASES = {
     'sync': {
         'NAME': DB_NAME,
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'HOST': 'localhost',
+        'HOST': DB_HOST,
         'USER': SYNC_USER,
         'PASSWORD': SYNC_PASSWORD,
         'PORT': '5432'
     }
 }
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+            ],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.TemplateHTMLRenderer',
+        'rest_framework.renderers.JSONRenderer',
+#        'rest_framework.renderers.BrowsableAPIRenderer',
+    ]
+}
+
+#LOGGING = {
+#    'version': 1,
+#    'disable_existing_loggers': False,
+#    'handlers': {
+#        'console': {
+#            'class': 'logging.StreamHandler',
+#        },
+#    },
+#    'loggers': {
+#        'django.db.backends': {
+#            'level': 'DEBUG',
+#            'handlers': ['console', ],
+#        },
+#    }
+#}
 
 
 # Internationalization
@@ -110,3 +155,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

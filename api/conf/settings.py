@@ -5,6 +5,7 @@ SECRET_KEY = '<super_secret>'
 
 ALLOWED_HOSTS = []
 
+DB_HOST = '<dbhost>'
 DB_USER = '<username>'
 DB_PASSWORD = '<password>'
 DB_NAME = '<dbname>'
@@ -21,3 +22,5 @@ DBTABLES = [
     'agency'
     ]
 DBSCHEMA = 'gtfs'
+
+INSTALLED_APPS_X = ()
