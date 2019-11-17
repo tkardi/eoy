@@ -13,8 +13,11 @@ Class-based views
 Including another URLconf
     1. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import include, url
+from django.conf.urls import url
+from django.urls import include, path
 from django.contrib import admin
+from rest_framework.urlpatterns import format_suffix_patterns
+from conf.settings import INSTALLED_APPS_X
 
 from eoy import views
 
@@ -34,3 +37,11 @@ urlpatterns = [
         r'^current/traingps/$', views.traingps,
         name='trains-list'),
 ]
+
+## add some extra urls
+for app in INSTALLED_APPS_X:
+    urlpatterns.append(
+        path('', include('%s.urls' % app)),
+    )
+
+urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'html'])

@@ -1,0 +1,173 @@
+{% load static %}
+{% load eoy_extras %}
+
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@7/dist/polyfill.min.js" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/2.0.3/fetch.js" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.js" type="text/javascript"></script>
+
+
+<style>
+#map {
+    position: relative;
+    left: 0px;
+    width: 100%;
+    height: 300px;
+}
+</style>
+
+<div id="map">
+
+</div>
+
+
+<script>
+  var map = L.map(
+      'map', {
+        center: L.latLng(58.68155729313816,24.905181644404998),
+        zoom:6,
+        minZoom:{% if not local %}0{% else %}6{%endif%},
+        maxZoom:18,
+        maxBounds: L.latLngBounds([
+            {% if not local %}[-90,-180],[90,180]{% else %}[53.87677644829216, 17.023771159524344],[62.85582385242469,35.106036681873526]{% endif %}
+        ]),
+      }
+    );
+
+    /* ALUSKAARDID */
+    {% if not local %}
+    L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+        attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+    }).addTo(map);
+
+    {% else %}
+
+    var orthotile = L.tileLayer(
+        '//tiles.maaamet.ee/tm/s/1.0.0/foto@GMC/{z}/{x}/{-y}.png', {
+          minZoom:6,
+          maxZoom: 18,
+          continuousWorld: false,
+          noWrap: false,
+          attribution: 'Ortofoto: <a href="http://www.maaamet.ee" target="_blank" rel="noopener noreferrer">Maa-Amet</a>'
+        }
+//      ),
+//      orthowms = L.tileLayer.wms(
+//        '//kaart.maaamet.ee/wms/fotokaart', {
+//          layers: 'EESTIFOTO',
+//          minZoom: 19,
+//          maxZoom: 24,
+//          version: '1.1.1',
+//          attribution : 'Ortofoto: <a href="http://www.maaamet.ee" target="_blank" rel="noopener noreferrer">Maa-Amet</a>'
+//        }
+      );
+
+    var kaarttile = L.tileLayer(
+        '//tiles.maaamet.ee/tm/s/1.0.0/kaart@GMC/{z}/{x}/{-y}.png', {
+            minZoom:6,
+            maxZoom: 18,
+            continuousWorld: false,
+            noWrap: false,
+            attribution: 'Aluskaart: <a href="http://www.maaamet.ee" target="_blank" rel="noopener noreferrer">Maa-Amet</a>'
+          }
+//        ),
+//        kaartwms = L.tileLayer.wms(
+//          '//kaart.maaamet.ee/wms/kaart', {
+//            layers: 'MA-KAART',
+//            minZoom: 14,
+//            maxZoom: 20,
+//            version: '1.1.1',
+//            attribution : 'Aluskaart: <a href="http://www.maaamet.ee" target="_blank" rel="noopener noreferrer">Maa-Amet</a>'
+//          }
+        );
+
+    var hybtexttile = L.tileLayer(
+            '//tiles.maaamet.ee/tm/s/1.0.0/hybriid@GMC/{z}/{x}/{-y}.png', {
+              minZoom:6,
+              maxZoom: 18,
+              continuousWorld: false,
+              noWrap: false,
+              attribution: 'Hübriid: <a href="http://www.maaamet.ee" target="_blank" rel="noopener noreferrer">Maa-Amet</a>'
+            }
+//          ),
+//        hybtextwms = L.tileLayer.wms(
+//            '//kaart.maaamet.ee/wms/fotokaart', {
+//              layers: 'HYBRID',
+//              transparent: true,
+//              format: 'image/png',
+//              minZoom: 14,
+//              maxZoom: 20,
+//              version: '1.1.1',
+//              attribution : 'Hübriid: <a href="http://www.maaamet.ee" target="_blank" rel="noopener noreferrer">Maa-Amet</a>'
+//            }
+          );
+
+    var hybridtile = L.layerGroup([orthotile, hybtexttile]); //,
+//        hybridwms = L.layerGroup([orthowms, hybtextwms]);
+
+    var kaart = L.layerGroup([kaarttile/*, kaartwms*/]).addTo(map),
+        orto = L.layerGroup([orthotile/*, orthowms*/]),
+        hybrid = L.layerGroup([hybridtile/*, hybridwms*/]);
+
+    var baselayers = {'Ortofoto':orto, 'Hübriid': hybrid, 'Aluskaart': kaart},
+        layerControl = L.control.layers(baselayers, {});
+    layerControl.addTo(map);
+    {% endif %}
+
+    var featureStyle = {
+        "color": "#FE7F2D",
+        "fillColor": "#FE7F2D",
+        "weight": 2.0,
+        "opacity": 1,
+        "fillOpacity": 0.3
+    };
+
+    var highlighted = {
+        "color": "#FE7F2D",
+        "fillColor": "#FE7F2D",
+        "weight": 4.0,
+        "opacity": 1,
+        "fillOpacity": 0.7
+    };
+
+    var fts = L.featureGroup().addTo(map);
+
+    {% for row in data %}
+      {% for field_name, type in fields.items %}
+        {% if type in 'GeometryField,PointField' %}
+          var feature = L.geoJSON({{ row|to_geojson:field_name|safe }}, {
+              style: function () {
+                return featureStyle;
+              },
+              pk: {{ row.pk }}
+          }).addTo(fts);
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+
+    function zoomMapToFeature(pk) {
+      map.eachLayer(function(layer) {
+        if (layer.options && layer.options.pk && layer.options.pk == pk) {
+          map.fitBounds(layer.getBounds());
+        }
+      })
+    }
+
+    function setFeatureHighlightOn(pk, status) {
+      map.eachLayer(function(layer) {
+        if (layer.options && layer.options.pk) {
+          if (layer.options.pk == pk && status != 0) {
+            layer.setStyle(highlighted);
+          } else {
+            layer.setStyle(featureStyle);
+          }
+        }
+      })
+    }
+
+
+    if (fts.getBounds()._northEast) {
+        map.fitBounds(fts.getBounds()).zoomOut();
+    }
+
+
+</script>

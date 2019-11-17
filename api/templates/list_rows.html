@@ -1,0 +1,161 @@
+{% load staticfiles %}
+{% load i18n %}
+{% load rest_framework %}
+{% load eoy_extras %}
+
+<!DOCTYPE html>
+<html>
+  <head>
+    {% block head %}
+
+      {% block meta %}
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <meta name="robots" content="NONE,NOARCHIVE" />
+      {% endblock %}
+
+      <title>{% block title %}{% if title %}{{ title }} – {% endif %}this is a webpage{% endblock %}</title>
+
+      {% block style %}
+        {% block bootstrap_theme %}
+          <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/bootstrap.min.css" %}"/>
+          <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/bootstrap-tweaks.css" %}"/>
+
+        {% endblock %}
+
+        <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/prettify.css" %}"/>
+        <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/default.css" %}"/>
+      {% endblock %}
+
+    {% endblock %}
+
+    <style>
+    .centered {
+      table-layout: fixed;
+      border-collapse: collapse;
+      empty-cells: show;
+      /*overflow-y: auto; */
+    }
+    td {
+      border: 1px solid black;
+      padding: 4px;
+    }
+    div#table_container {
+      width: auto;
+      margin: 40px;
+      border: 0px solid grey;
+      height:55%;
+    }
+    .touchScreen div#table_container {
+        width: 600px;
+    }
+    #table_head_container {
+      background: #CC3600;
+      color: white;
+      font-weight: bold;
+    }
+    #table_body_container {
+        height: 400px;
+        overflow-y: scroll;
+    }
+
+    #table_body_container tr:hover {
+        background: #D7DBDE;
+        text-decoration: none;
+    }
+
+    tr:first-child td {
+        border-top: 0;
+    }
+    #table_body tr.lastRow td {
+        border-bottom: 0;
+    }
+    td:first-child {
+        min-width: 100px;
+        max-width: 100px;
+        border-left: 0;
+    }
+    td:nth-child(even) {
+        min-width: 110px;
+        max-width: 110px;
+    }
+    td:nth-child(odd) {
+        min-width: 110px;
+        max-width: 110px;
+    }
+
+    td:last-child {
+
+        border-right: 0;
+    }
+
+/*
+    #table_body_container td a {
+        display: block;
+        padding: 2px;
+        color: #233D4D;
+        text-decoration: none;
+    }
+*/
+    .page-title {
+        margin-left: 15%;
+        padding-bottom: 20px;
+    }
+    </style>
+  </head>
+
+  {% block body %}
+  <body class="{% block bodyclass %}{% endblock %}">
+    <h1 class="page-title">{{ title }}</h1>
+    {% include "map.html" %}
+    <div id="table_container" class="centered">
+      <div id="table_head_container">
+      <!--table class="centered fixed_header"-->
+        <table id="table_head">
+          <tr>
+            {% for field_name, type in fields.items %}
+              {% if type not in 'GeometryField,PointField' %}
+                <td>
+                  {{ field_name }}
+                </td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        </table>
+      </div>
+      <div id="table_body_container">
+        <table id="table_body">
+          {% for row in data  %}
+            <tr class="data-row" id={{ row.pk }} onclick="zoomMapToFeature({{row.pk}})" onmouseover="setFeatureHighlightOn({{row.pk}}, 1)" onmouseout="setFeatureHighlightOn({{row.pk}}, 0)">
+                {% for field_name, type in fields.items %}
+                   {% if type not in 'GeometryField,PointField' %}
+                        <td>
+                            {% if type == 'DateTimeField' %}
+                                {{ row|get_value:field_name|date:'Y-m-d H:i:s'}}
+                            {% else %}
+                                {{ row|get_value:field_name|default_if_none:"&nbsp;" }}
+                            {% endif %}
+                        </td>
+                    {% endif %}
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+    {% block script %}
+      <script>
+        window.drf = {
+          csrfHeaderName: "{{ csrf_header_name|default:'X-CSRFToken' }}",
+          csrfCookieName: "{{ csrf_cookie_name|default:'csrftoken' }}"
+        };
+      </script>
+
+      <script src="{% static "rest_framework/js/jquery-3.4.1.min.js" %}"></script>
+      <script src="{% static "rest_framework/js/ajax-form.js" %}"></script>
+      <script src="{% static "rest_framework/js/csrf.js" %}"></script>
+      <script src="{% static "rest_framework/js/bootstrap.min.js" %}"></script>
+      <script src="{% static "rest_framework/js/prettify-min.js" %}"></script>
+    {% endblock %}
+  </body>
+  {% endblock %}
+</html>

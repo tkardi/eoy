@@ -16,8 +16,21 @@ def index(request, *args, **kwargs):
     return Response({"message":"Nobody expects the spanish inquisition!"})
 
 class LocTableAsList(generics.ListAPIView):
-    queryset = CurrentLocations.objects.all()
+    model = CurrentLocations
+    queryset = model.objects.all()
     serializer_class = serializers.LocationTableSerializer
+
+    def get_fields_for_model(self):
+        return self.model._meta.get_fields()
+
+    def get(self, request, *args, **kwargs):
+        if request.accepted_renderer.format == 'html':
+            data = {
+                'data' : self.get_queryset(),
+                'fields': dict((field.name, field.get_internal_type()) for field in self.get_fields_for_model())
+            }
+            return Response(data, template_name='list_rows.html')
+        return super(LocTableAsList, self).get(request, *args, **kwargs)
 
 @api_view(('GET', ))
 def flightradar(request, *args, **kwargs):
