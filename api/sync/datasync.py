@@ -176,6 +176,14 @@ def run():
     # keep the file for now...
     #shutil.rmtree(to_path)
 
+    def postprocess():
+        with open('preprocess-all.sql') as f:
+            statements = f.read()
+        c = CONNECTIONS['sync']
+        with c.cursor() as cursor:
+            for statement in statements.split(';'):
+                c.execute(statement)        
+
 
 if __name__ == '__main__':
     run()
