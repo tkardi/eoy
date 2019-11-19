@@ -111,7 +111,7 @@
       <div id="table_head_container">
       <!--table class="centered fixed_header"-->
         <table id="table_head">
-          <tr>
+          <tr>{% if uri_field %}<td>uri</td>{% endif %}
             {% for field_name, type in fields.items %}
               {% if type not in 'GeometryField,PointField' %}
                 <td>
@@ -126,6 +126,7 @@
         <table id="table_body">
           {% for row in data  %}
             <tr class="data-row" id={{ row.pk }} onclick="zoomMapToFeature({{row.pk}})" onmouseover="setFeatureHighlightOn({{row.pk}}, 1)" onmouseout="setFeatureHighlightOn({{row.pk}}, 0)">
+              {% if uri_field %}<td><a href="{{ row|get_value:uri_field }}/" target="_blank" rel="noopener noreferrer">view</a></td>{% endif %}
                 {% for field_name, type in fields.items %}
                    {% if type not in 'GeometryField,PointField' %}
                         <td>
