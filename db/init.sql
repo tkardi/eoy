@@ -117,29 +117,21 @@ create or replace function gtfs.get_time_fraction(
 returns numeric as
 $$
 declare
-    a_cur varchar[];
-    a_strt varchar[];
-    a_fin varchar[];
-    strt time;
-    fin interval;
-    totalsecs numeric;
-    fractionsecs numeric;
+    a_cur int;
+    a_strt int;
+    a_fin int;
+    totalsecs numeric := 1;
+    fractionsecs numeric := 0;
 begin
-    a_fin := string_to_array(trip_fin, ':');
-    a_strt := string_to_array(trip_start, ':');
-    a_cur := string_to_array(curtime, ':');
-    if a_fin[1]::smallint >= 24 then
-        fin := ((a_fin[1]::smallint - 24)::varchar||':'||(a_fin)[2]||':'||(a_fin)[3])::time;
-        totalsecs := extract(epoch from (('24:00:00'::time - trip_start::time) + fin));
-    else
-        totalsecs := extract(epoch from trip_fin::time - trip_start::time);
+    a_fin := extract(epoch from trip_fin::interval);
+    a_strt := extract(epoch from trip_start::interval);
+    a_cur := extract(epoch from curtime::interval);
+    if a_cur < a_strt then
+        a_cur := a_cur + 24*60*60;
     end if;
-
-    if a_cur[1]::smallint < a_strt[1]::smallint then
-        fin := '24:00:00'::time - trip_start::time;
-        fractionsecs := extract(epoch from (curtime::time + fin));
-    else
-        fractionsecs := extract(epoch from curtime::time - trip_start::time);
+    if a_cur between a_strt and a_fin then
+        fractionsecs := (a_cur::numeric-a_strt::numeric);
+        totalsecs := (a_fin::numeric-a_strt::numeric);
     end if;
 --    raise notice 'Fraction %', fractionsecs;
 --    raise notice 'Total %', totalsecs;
@@ -169,6 +161,12 @@ union all
 select '23:00:00', '23:01:00', '23:01:00', 1.0
 union all
 select '23:00:00', '23:01:00', '23:00:00', 0.0
+union all
+select '00:10:00', '00:44:00', '00:27:00', 0.5
+union all
+select '24:10:00', '24:44:00', '00:27:00', 0.5
+union all
+select '22:00:00', '28:00:00', '01:00:00', 0.5
 ) f;
 */
 

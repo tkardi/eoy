@@ -158,7 +158,8 @@ with
         select
             clock_timestamp()::date AS cd,
             to_char(clock_timestamp(), 'hh24:mi:ss'::text) AS ct,
-            date_part('dow'::text, clock_timestamp()) + 1 AS d
+            date_part('dow'::text, clock_timestamp()) + 1 AS d,
+            lpad((to_char(clock_timestamp(), 'hh24')::int + 24)::varchar,2,'0')||':'||to_char(clock_timestamp(), 'mi:ss') as plushours
     ),
     cal as (
         select
@@ -188,8 +189,13 @@ with
             from
                 gtfs.calctrips, curtime
             where
-                curtime.ct >= calctrips.from_stop_time::text and
-                curtime.ct <= calctrips.to_stop_time::text
+                (
+                    curtime.ct >= calctrips.from_stop_time::text and
+                    curtime.ct <= calctrips.to_stop_time::text
+                ) or (
+                    curtime.plushours >= calctrips.from_stop_time::text and
+                    curtime.plushours <= calctrips.to_stop_time::text
+                )
         ),
         trip as (
             select
