@@ -3,6 +3,15 @@
   <head>
     <meta charset="utf-8">
     <title>Public transit map</title>
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Public transit dashboard">
+    <meta name="twitter:description" content="This dashboard shows calculated locations (based on timetables from GTFS) of public transit vehicles in a quasi-realtime manner. Read more at https://github.com/tkardi/eoy">
+    <meta property="og:title" content="Public transit dashboard">
+    <meta property="og:description" content="This dashboard shows calculated locations (based on timetables from GTFS) of public transit vehicles in a quasi-realtime manner. Read more at https://github.com/tkardi/eoy">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tkardi.ee/eoy/map/index.html">
+    <meta property="og:image" content="https://tkardi.ee/eoy/map/thumb.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.1/leaflet.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
@@ -39,7 +48,15 @@
 
     </div>
     <script>
-        var map = L.map('map').setView([58.6625,25.3125], 7),
+    var params = {};
+      	window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
+      	    params[key] = value;
+      	});
+
+              var lat = params.lat && params.lon ? Number(params.lat) : 58.68155729313816,
+                  lon = params.lat && params.lon ? Number(params.lon) : 24.905181644404998
+                  z = params.z ? Number(params.z) : 7;
+        var map = L.map('map').setView([lat,lon], z),
             // follow_layer is the vehicle that will be centered on and followed
             // during updates after it has been selected w/ a click.
             follow_layer_id = undefined,
@@ -187,6 +204,14 @@
             data.current_time = current_time;
             return data;
         }
+
+        map.on('moveend', function(e){
+            var _url = location.href.split('?')[0],
+                latlng = map.getCenter(),
+                z = map.getZoom();
+            _url = L.Util.template('{url}?lon={lon}&lat={lat}&z={z}', {url:_url, lon:latlng.lng, lat:latlng.lat, z:z});
+            window.history.replaceState({}, null, _url);
+        });
     </script>
   </body>
 </html>
