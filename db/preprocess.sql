@@ -227,10 +227,23 @@ select
     trip.leg_start as prev_stop_time,
     curtime.ct as current_time,
     '#'::text || trip.route_color::text as route_color,
-    st_lineinterpolatepoint(
-        trip.shape, gtfs.get_time_fraction(
-            trip.leg_start, trip.leg_fin, gtfs.get_current_impeded_time(
-                trip.leg_start, trip.leg_fin, trip.cur::character varying))) as pos
+    /* @tkardi 09.11.2021 st_flipcoordinates to quickly get API geojson
+       coors order correct. FIXME: should be a django version gdal version thing.
+    */
+    st_flipcoordinates(
+        st_lineinterpolatepoint(
+            trip.shape,
+            gtfs.get_time_fraction(
+                trip.leg_start,
+                trip.leg_fin,
+                gtfs.get_current_impeded_time(
+                    trip.leg_start,
+                    trip.leg_fin,
+                    trip.cur::character varying
+                )
+            )
+        )
+    ) as pos
 from curtime, trip
     left join gtfs.stops tostop on trip.to_stop_id = tostop.stop_id
     left join gtfs.stops fromstop on trip.from_stop_id = fromstop.stop_id;

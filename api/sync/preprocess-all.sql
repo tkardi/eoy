@@ -111,7 +111,8 @@ with
         select
             clock_timestamp()::date AS cd,
             to_char(clock_timestamp(), 'hh24:mi:ss'::text) AS ct,
-            date_part('dow'::text, clock_timestamp()) + 1 AS d
+            date_part('dow'::text, clock_timestamp()) + 1 AS d,
+            lpad((to_char(clock_timestamp(), 'hh24')::int + 24)::varchar,2,'0')||':'||to_char(clock_timestamp(), 'mi:ss') as plushours
     ),
     cal as (
         select
@@ -141,8 +142,13 @@ with
             from
                 gtfs.calctrips, curtime
             where
-                curtime.ct >= calctrips.from_stop_time::text and
-                curtime.ct <= calctrips.to_stop_time::text
+                (
+                    curtime.ct >= calctrips.from_stop_time::text and
+                    curtime.ct <= calctrips.to_stop_time::text
+                ) or (
+                    curtime.plushours >= calctrips.from_stop_time::text and
+                    curtime.plushours <= calctrips.to_stop_time::text
+                )
         ),
         trip as (
             select
@@ -174,10 +180,24 @@ select
     trip.leg_start as prev_stop_time,
     curtime.ct as current_time,
     '#'::text || trip.route_color::text as route_color,
-    st_lineinterpolatepoint(
-        trip.shape, gtfs.get_time_fraction(
-            trip.leg_start, trip.leg_fin, gtfs.get_current_impeded_time(
-                trip.leg_start, trip.leg_fin, trip.cur::character varying))) as pos
+    /* @tkardi 09.11.2021 st_flipcoordinates to quickly get API geojson
+       coors order correct. FIXME: should be a django version gdal version thing.
+    */
+    st_flipcoordinates(
+        st_lineinterpolatepoint(
+            trip.shape,
+            gtfs.get_time_fraction(
+                trip.leg_start,
+                trip.leg_fin,
+                gtfs.get_current_impeded_time(
+                    trip.leg_start,
+                    trip.leg_fin,
+                    trip.cur::character varying
+                )
+            )
+        )
+    ) as pos
 from curtime, trip
     left join gtfs.stops tostop on trip.to_stop_id = tostop.stop_id
     left join gtfs.stops fromstop on trip.from_stop_id = fromstop.stop_id
+;
