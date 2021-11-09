@@ -1,10 +1,5 @@
 <!DOCTYPE html>
 <html>
-    <!-- The following HTML page together with the accompanying
-    javascript is published under the Unlicense.
-
-    SPDX-License-Identifier: Unlicense
-    -->
     <head>
         <meta charset="utf-8">
         <title>Air traffic map</title>
@@ -55,13 +50,20 @@
                 </defs>
             </svg>
         </div>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-realtime/2.0.0/leaflet-realtime.min.js" type="text/javascript"></script>
         <script>
+            var params = {};
+              	window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
+              	    params[key] = value;
+              	});
+
+                      var lat = params.lat && params.lon ? Number(params.lat) : 58.68155729313816,
+                          lon = params.lat && params.lon ? Number(params.lon) : 24.905181644404998
+                          z = params.z ? Number(params.z) : 7;
             var center = [58.65, 25.06],
                 radarbeam = {"type":"LineString", "coordinates": [[center[1], center[0]], [center[1], center[0]]]};
-            var map = L.map('map').setView(center, 7);
+            var map = L.map('map').setView([lat,lon], z);
 
-            var realtime = L.realtime('https://tkardi.ee/current/flightradar', {
+            var realtime = L.realtime('https://tkardi.ee/current/flightradar/?format=json', {
                 interval: 10 * 1000,
                 getFeatureId: function(feature) {
                     return feature.id;
@@ -79,8 +81,6 @@
                                 var value = feature.properties[key];
                                 if (value === undefined || value == null) {
                                     value = 'N/A';
-                                } else if (typeof value === 'function') {
-                                    value = value(data);
                                 }
                                 return value;
                             }),
@@ -264,6 +264,13 @@
                 }
             ).addTo(map);
 
+            map.on('moveend', function(e){
+                var _url = location.href.split('?')[0],
+                    latlng = map.getCenter(),
+                    z = map.getZoom();
+                _url = L.Util.template('{url}?lon={lon}&lat={lat}&z={z}', {url:_url, lon:latlng.lng, lat:latlng.lat, z:z});
+                window.history.replaceState({}, null, _url);
+            });
 
             // and attribution
             map.attributionControl.addAttribution(
