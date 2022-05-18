@@ -230,7 +230,6 @@ select
     /* @tkardi 09.11.2021 st_flipcoordinates to quickly get API geojson
        coors order correct. FIXME: should be a django version gdal version thing.
     */
-    st_flipcoordinates(
         st_lineinterpolatepoint(
             trip.shape,
             gtfs.get_time_fraction(
@@ -242,7 +241,6 @@ select
                     trip.cur::character varying
                 )
             )
-        )
     ) as pos
 from curtime, trip
     left join gtfs.stops tostop on trip.to_stop_id = tostop.stop_id

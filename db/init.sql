@@ -1,9 +1,10 @@
-﻿create schema gtfs authorization postgres;
+create schema if not exists gtfs authorization postgres;
 comment on schema gtfs is 'Schema for GTFS data';
 
 /* Tables */
 
-create table if not exists gtfs.agency (
+drop table if exists gtfs.agency;
+create table gtfs.agency (
     agency_id integer,
     agency_name character varying(250),
     agency_url character varying(250),
@@ -17,7 +18,8 @@ alter table gtfs.agency add constraint
     pk__agency primary key (agency_id);
 
 
-create table if not exists gtfs.calendar(
+drop table if exists gtfs.calendar;
+create table gtfs.calendar(
     service_id integer,
     monday boolean,
     tuesday boolean,
@@ -34,7 +36,8 @@ alter table gtfs.calendar add constraint
     pk__calendar primary key (service_id);
 
 
-create table if not exists gtfs.routes(
+drop table if exists gtfs.routes;
+create table gtfs.routes(
     route_id character varying(32),
     agency_id integer,
     route_short_name character varying(100),
@@ -52,7 +55,8 @@ alter table gtfs.routes add constraint
 --    deferrable initially deferred;
 
 
-create table if not exists gtfs.shapes(
+drop table if exists gtfs.shapes;
+create table gtfs.shapes(
     shape_id integer,
     shape_pt_lat numeric,
     shape_pt_lon numeric,
@@ -61,7 +65,8 @@ create table if not exists gtfs.shapes(
 alter table gtfs.shapes owner to postgres;
 create unique index uidx__shapes on gtfs.shapes (shape_id, shape_pt_sequence);
 
-create table if not exists gtfs.stops (
+drop table if exists gtfs.stops;
+create table gtfs.stops (
     stop_id integer,
     stop_code character varying(100),
     stop_name character varying(250),
@@ -79,8 +84,8 @@ alter table gtfs.stops owner to postgres;
 alter table gtfs.stops add constraint
     pk__stops primary key (stop_id);
 
-
-create table if not exists gtfs.trips (
+drop table if exists gtfs.trips;
+create table gtfs.trips (
     route_id character varying(32),
     service_id integer,
     trip_id integer,
@@ -93,7 +98,8 @@ create table if not exists gtfs.trips (
 alter table gtfs.trips owner to postgres;
 
 
-create table if not exists gtfs.stop_times(
+drop table if exists gtfs.stop_times;
+create table gtfs.stop_times(
     trip_id integer,
     arrival_time character varying(8),
     departure_time character varying(8),
@@ -120,11 +126,16 @@ declare
     a_cur int;
     a_strt int;
     a_fin int;
+    strt time;
+    fin interval;
     totalsecs numeric := 1;
     fractionsecs numeric := 0;
 begin
-    a_fin := extract(epoch from trip_fin::interval);
+    --a_fin := string_to_array(trip_fin, ':');
+     a_fin := extract(epoch from trip_fin::interval);
+    --a_strt := string_to_array(trip_start, ':');
     a_strt := extract(epoch from trip_start::interval);
+    --a_cur := string_to_array(curtime, ':');
     a_cur := extract(epoch from curtime::interval);
     if a_cur < a_strt then
         a_cur := a_cur + 24*60*60;
@@ -133,9 +144,27 @@ begin
         fractionsecs := (a_cur::numeric-a_strt::numeric);
         totalsecs := (a_fin::numeric-a_strt::numeric);
     end if;
---    raise notice 'Fraction %', fractionsecs;
---    raise notice 'Total %', totalsecs;
-return fractionsecs::numeric / totalsecs::numeric;
+
+/*    if a_fin[1]::smallint >= 24 then
+        fin := ((a_fin[1]::smallint - 24)::varchar||':'||(a_fin)[2]||':'||(a_fin)[3])::time;
+        totalsecs := extract(epoch from (('24:00:00'::time - trip_start::time) + fin));
+    else
+        totalsecs := extract(epoch from trip_fin::time - trip_start::time);
+    end if;
+
+    if a_cur[1]::smallint < a_strt[1]::smallint then
+        fin := '24:00:00'::time - trip_start::time;
+        fractionsecs := extract(epoch from (curtime::time + fin));
+    else
+        fractionsecs := extract(epoch from curtime::time - trip_start::time);
+    end if;
+    */
+    --raise notice 'a_cur %', a_cur;
+    --raise notice 'a_strt %', a_strt;
+    --raise notice 'a_fin %', a_fin;
+    --raise notice 'Fraction %', fractionsecs;
+    --raise notice 'Total %', totalsecs;
+    return fractionsecs::numeric / totalsecs::numeric;
 end;
 $$
 language plpgsql
@@ -249,7 +278,7 @@ begin
         -- doing full speed ->> return whatever timespan we need to cover
         X := nxt - prv;
         M := acctime + stoptime;
-        dt := ((X - 2 * acctime)::numeric / (X - 2 * M)::numeric) * (cur - prv - M)::numeric;
+        dt := ((X - 2 * acctime)::numeric / (X - 2 * M)::numeric + 0.000001) * (cur - prv - M)::numeric;
         dt := prv + acctime + dt;
     end if;
     return (timestamp 'epoch' + dt * interval '1 second')::time::varchar;
