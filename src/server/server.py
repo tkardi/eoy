@@ -8,6 +8,7 @@ from flask_compress import Compress
 
 from app.server.gtfs import LocTableRequestHandler
 from app.server.gtfs import TripTableRequestHandler
+from app.server.flightradar import FlightRadar
 from app.server.exceptions import ToHTTPError
 
 app = Flask(__name__)
@@ -28,7 +29,6 @@ def root():
         json.dumps({"message":"Nobody expects the Spanish inquisition!"}),
         mimetype='application/json',
         headers={
-            'Access-Control-Allow-Origin':'*',
             'Content-Encoding':'UTF-8'
         }
     )
@@ -39,7 +39,6 @@ def loc_table_request():
         LocTableRequestHandler().serve_request(),
         mimetype='application/json',
         headers={
-            'Access-Control-Allow-Origin':'*',
             'Content-Encoding':'UTF-8'
         }
     )
@@ -50,9 +49,16 @@ def trip_table_request():
         TripTableRequestHandler().serve_request(),
         mimetype='application/json',
         headers={
-            'Access-Control-Allow-Origin':'*',
             'Content-Encoding':'UTF-8'
         }
+    )
+
+@app.route('/current/flightradar/')
+def flightradar_get():
+    return Response(
+        response=json.dumps(FlightRadar().get_flight_radar_data()),
+        status=200,
+        mimetype='application/json'
     )
 
 if __name__ == '__main__':
