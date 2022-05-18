@@ -164,6 +164,7 @@ def run():
     shutil.rmtree(to_path)
 
 def postprocess():
+    print("starting postprocess...")
     with psycopg2.connect(**settings.DATABASE) as connection:
         fp = os.path.join(os.path.dirname(_PATH), 'resources', 'db', 'preprocess.sql')
         with open(fp) as f:
@@ -172,6 +173,7 @@ def postprocess():
             for statement in statements.split(';'):
                 if statement.strip() != '':
                     cursor.execute(statement.strip())
+    print("postprocess done")
 
 
 if __name__ == '__main__':

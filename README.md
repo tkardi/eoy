@@ -30,8 +30,9 @@ The process of getting this thing up and running is currently a bit tedious,
 but we'll live with that for now.
 
 ## Database
-Expects presence of PostgreSQL (9.4+) / PostGIS (2.1+). As a privileged user run
-[db/init.sql](db/init.sql). This will create a database schema called `gtfs`,
+Expects presence of PostgreSQL (10+) / PostGIS (2.4+). As a privileged user run
+[resources/db/init.sql](src/resources/db/init.sql).
+This will create a database schema called `gtfs`,
 a few tables into it (`gtfs.agency`, `gtfs.calendar`, `gtfs.routes`,
 `gtfs.shapes`, `gtfs.stop_times`, `gtfs.stops`, `gtfs.trips`) and three
 functions for dealing with location calculation (`gtfs.get_current_impeded_time`,
@@ -41,7 +42,7 @@ last function goes to [rcoup](http://gis.stackexchange.com/users/564/rcoup)'s
 this function will not be necessary anymore and `st_split(geometry, geometry)`
 can be used instead.
 
-**NOTE:** Tested also on PostgreSQL 14 / PostGIS 3.2 and seems to be running
+**NOTE:** Tested on PostgreSQL 14 / PostGIS 3.2 and seems to be running
 fine (@tkardi, 18.05.2022)
 
 **NB! Before running the sql file, please read carefully what it does. A sane
@@ -49,10 +50,7 @@ mind should not run whatever things in a database ;)**
 
 Once the database tables and functions have been set up, data can be inserted.
 
-## web API
-Is based on Flask (Used to be Django, but not any more).
-
-### Configuration
+## Configuration
 Configuration is loaded in the following order:
 - [resources/global.params.json](/src/resources/global.params.json): this should
 contain all app specific settings, regardless of the env we're running in.
@@ -69,7 +67,7 @@ Missing any of these files will not raise an exception during configuration
 loading but may hurt afterwards when a specific value that is needed is not
 found.
 
-### Using Docker engine for web API
+## Docker
 The Flask app maybe run manually in terminal but the least-dependency-hell-way
 seems to be via docker (official latest python:3 image). In the project root
 (assuming your database connection is correctly configured in
@@ -79,6 +77,25 @@ seems to be via docker (official latest python:3 image). In the project root
 $ source build.sh
   [..]
 Successfully tagged localhost/eoy:latest
+$ 
+```
+
+## Load data
+The configuration that is necessary for loading the data is described in
+[Configuration](#configuration). To start the loading procedure
+you need to run [tools/datasync.py](src/tools/datasync.py)
+
+```
+$ docker run -it --rm --network=host -e APP_ENV=DEV --name eoy localhost/eoy:latest python /main/app/tools/datasync.py
+  [..]
+postprocess done
+$
+```
+
+## web API
+Is based on Flask (Used to be Django, but not any more).
+
+```
 $ docker run -it --rm --network=host -e APP_ENV=DEV --name eoy localhost/eoy:latest
 * Serving Flask app 'server' (lazy loading)
 * Environment: production
@@ -88,19 +105,6 @@ $ docker run -it --rm --network=host -e APP_ENV=DEV --name eoy localhost/eoy:lat
 * Running on http://127.0.0.1:5000 (Press CTRL+C to quit)
   [..]
 ```
-
-## Loading data
-The configuration that is necessary for loading the data is described in
-[api/conf/settings.py](api/conf/settings.py). To start the loading procedure
-you need to run [api/sync/datasync.py](api/sync/datasync.py)
-
-`$ python datasync.py`
-
-And after the loading has finished, again, as a privileged user run
-[db/preprocess.sql](db/preprocess.sql). Then we can fire up Django's
-development server with
-
-`$ python manage.py runserver`
 
 Point your browser to http://127.0.0.1:5000/ and you should see a
 response:
