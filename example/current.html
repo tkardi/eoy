@@ -73,29 +73,31 @@
                 "#8BB4C5": "Ferry"
             },
             // vehicle locations layer
-            realtime = L.realtime('https://tkardi.ee/current/locations/?format=json', {
+            realtime = L.realtime('https://tkardi.ee/gtfs/current/locations/?format=json', {
                 interval: 3 * 1000,
                 getFeatureId: function(feature) {
-                    return feature.id;
+                    return feature.properties.trip_id;
                 },
                 pointToLayer: function(feature, latlng) {
+                    console.log(feature);
                     var marker = L.marker(latlng, {
                         icon: L.AwesomeMarkers.icon({
                             prefix: 'fa',
                             icon: 'fa-bus',
                             markerColor: 'black',
-                            iconColor: feature.properties.route_color
+                            iconColor: feature.properties.route_color.toLowerCase()
                         }),
                         riseOnHover: true
                     }).bindTooltip(
                         L.Util.template(
-                            '{route_short_name}: {trip_long_name}. <br>Headsign: {trip_headsign}. <br>Next: {nextstop_name} @ {nextstop_arrive}',
+                            '{route_short_name}: {trip_long_name}. <br>Headsign: {trip_headsign}. <br>Next: {next_stop} @ {next_stop_time}',
                             feature.properties
                         )
                     );
                     return marker;
                 },
                 onEachFeature: function(feature, layer) {
+                    //console.log(feature);
                     layer.on({
                         click: function (e) {
                             follow_layer_id = e.target.feature.id;
@@ -106,7 +108,7 @@
                                 feature = layer.feature;
                             layer.setTooltipContent(
                                 L.Util.template(
-                                    '{route_short_name}: {trip_long_name}. <br>Headsign: {trip_headsign}. <br>Next: {nextstop_name} @ {nextstop_arrive}',
+                                    '{route_short_name}: {trip_long_name}. <br>Headsign: {trip_headsign}. <br>Next: {next_stop} @ {next_stop_time}',
                                     feature.properties
                                 )
                             );
