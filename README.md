@@ -30,8 +30,9 @@ The process of getting this thing up and running is currently a bit tedious,
 but we'll live with that for now.
 
 ## Database
-Expects presence of PostgreSQL (9.4+) / PostGIS (2.1+). As a privileged user run
-[db/init.sql](db/init.sql). This will create a database schema called `gtfs`,
+Expects presence of PostgreSQL (10+) / PostGIS (2.4+). As a privileged user run
+[resources/db/init.sql](src/resources/db/init.sql).
+This will create a database schema called `gtfs`,
 a few tables into it (`gtfs.agency`, `gtfs.calendar`, `gtfs.routes`,
 `gtfs.shapes`, `gtfs.stop_times`, `gtfs.stops`, `gtfs.trips`) and three
 functions for dealing with location calculation (`gtfs.get_current_impeded_time`,
@@ -41,41 +42,71 @@ last function goes to [rcoup](http://gis.stackexchange.com/users/564/rcoup)'s
 this function will not be necessary anymore and `st_split(geometry, geometry)`
 can be used instead.
 
+**NOTE:** Tested on PostgreSQL 14 / PostGIS 3.2 and seems to be running
+fine (@tkardi, 18.05.2022)
+
 **NB! Before running the sql file, please read carefully what it does. A sane
 mind should not run whatever things in a database ;)**
 
 Once the database tables and functions have been set up, data can be inserted.
 
-## web API
-But still, before data can be loaded to the database, Django (2.2 is the
-current LTS version), Django Rest Framework ja Django Rest Framework GIS
-should be installed. We need Django for data loading as we'll use Django's
-db connection factory.
+## Configuration
+Configuration is loaded in the following order:
+- [resources/global.params.json](/src/resources/global.params.json): this should
+contain all app specific settings, regardless of the env we're running in.
+- [resources/environment/${APP_ENV}.params.json](/src/resources/environment/dev.params.json):
+should contain all environment specific configuration (like db connection params).
+The file will selected based on the available `APP_ENV` environment variable
+value (case does not matter), and will default to `DEV` if not set. So if you
+call your environment `THIS-IS-IT`, then be sure to have a file called
+`resources/environment/this-is-it.params.json` present aswell.
+- Override parameters should be mounted to `/main/app/resources/override` path.
+Expected filename is `params.json`.
 
-You can simply `pip` them
+Missing any of these files will not raise an exception during configuration
+loading but may hurt afterwards when a specific value that is needed is not
+found.
+
+## Docker
+The Flask app maybe run manually in terminal but the least-dependency-hell-way
+seems to be via docker (official latest python:3 image). In the project root
+(assuming your database connection is correctly configured in
+[resources/environment/dev.params.json](/src/resources/dev.params.json)):
 
 ```
-$ pip install django==2.2
-$ pip install djangorestframework
-$ pip install pip install djangorestframework-gis
+$ source build.sh
+  [..]
+Successfully tagged localhost/eoy:latest
+$ 
 ```
-or simply use the [`requirements.txt`](api/requirements.txt) because there are
-some other things required aswell.
 
-## Loading data
+## Load data
 The configuration that is necessary for loading the data is described in
-[api/conf/settings.py](api/conf/settings.py). To start the loading procedure
-you need to run [api/sync/datasync.py](api/sync/datasync.py)
+[Configuration](#configuration). To start the loading procedure
+you need to run [tools/datasync.py](src/tools/datasync.py)
 
-`$ python datasync.py`
+```
+$ docker run -it --rm --network=host -e APP_ENV=DEV --name eoy localhost/eoy:latest python /main/app/tools/datasync.py
+  [..]
+postprocess done
+$
+```
 
-And after the loading has finished, again, as a privileged user run
-[db/preprocess.sql](db/preprocess.sql). Then we can fire up Django's
-development server with
+## web API
+Is based on Flask (Used to be Django, but not any more).
 
-`$ python manage.py runserver`
+```
+$ docker run -it --rm --network=host -e APP_ENV=DEV --name eoy localhost/eoy:latest
+* Serving Flask app 'server' (lazy loading)
+* Environment: production
+  WARNING: This is a development server. Do not use it in a production deployment.
+  Use a production WSGI server instead.
+* Debug mode: off
+* Running on http://127.0.0.1:5000 (Press CTRL+C to quit)
+  [..]
+```
 
-Point your browser to http://127.0.0.1:8000?format=json and you should see a
+Point your browser to http://127.0.0.1:5000/ and you should see a
 response:
 
 `{"message":"Nobody expects the spanish inquisition!"}`
@@ -84,12 +115,12 @@ response:
 HTTP GET queries
 
 ### Current locations
-http://127.0.0.1:8000/current/locations?format=json
+http://127.0.0.1:5000/current/locations/
 Returns currently active vehicles and their locations together
 with data on previous and next stops, and routes.
 
 ### Current trips
-http://127.0.0.1:8000/current/trips?format=json
+http://127.0.0.1:5000/current/trips/
 Returns currently active trips as linestrings from the first stop of the
 trip to the last.
 

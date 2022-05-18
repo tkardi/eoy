@@ -1,11 +1,27 @@
-drop view if exists gtfs.loctable_v2
-;
-drop table if exists gtfs.calcshapes
-;
-drop table if exists gtfs.calcstopnodes
-;
-drop table if exists gtfs.calctrips
-;
+/** Some tuning/preprocessing. These will have to be wrapped either
+* in a db function (so we can call it from datasync.py)
+* or alternatively save as plaintext files and let datasync.py
+* read them (it) and then execute in a transaction after data sync
+* has taken place.
+*/
+
+
+-- drop previous
+drop view if exists gtfs.loctable_v2;
+drop table if exists gtfs.calcshapes;
+drop table if exists gtfs.calcstopnodes;
+drop table if exists gtfs.calctrips;
+
+-- and create anew
+
+/** table: gtfs.calcshapes
+*
+* A table for storing full trip shapes (linestrings) and
+* collected nodes, which we'll use afterwards for "snapping"
+* stops onto trip shapes.
+*/
+
+
 create table gtfs.calcshapes as
 select
     shape_id, st_makeline(array_agg(shape)) as shape,
@@ -18,12 +34,21 @@ from (
     order by s.shape_id, s.shape_pt_sequence) n
 group by shape_id
 order by shape_id;
+
 alter table gtfs.calcshapes
     add constraint pk__calcshapes primary key (shape_id);
 create index sidx__calcshapes
     on gtfs.calcshapes using gist (shape);
 create index sidx__calcshapes_nodes
     on gtfs.calcshapes using gist (shape);
+
+
+/** table: gtfs:calcstopnodes
+*
+* Stores closest nodes on trip shapes to respective stops.
+*/
+
+
 create table gtfs.calcstopnodes as
 select
     shape_id, st_multi(st_collect(stop_node)) as stop_nodes,
@@ -44,14 +69,23 @@ from (
         st.trip_id = t.trip_id and
         s.shape_id = t.shape_id
     order by s.shape_id, t.trip_id, st.stop_sequence) m
-group by shape_id, trip_id
-;
+group by shape_id, trip_id;
+
 alter table gtfs.calcstopnodes
-    add constraint pk__calcstopnodes primary key (trip_id)
-;
+    add constraint pk__calcstopnodes primary key (trip_id);
 create index sidx__calcstopnodes
-    on gtfs.calcstopnodes using gist (stop_nodes)
-;
+    on gtfs.calcstopnodes using gist (stop_nodes);
+
+
+/** table: gtfs.calctrips
+*
+* Break trip shapes up into shorter linestrings based on stops (i.e
+* "trip shape closest nodes to stops"). Call these "trip legs".
+* A trip leg starts at gtfs.stop_times.departure_time and ends at
+* gtfs.stop_times.arrival_time.
+*/
+
+
 create table gtfs.calctrips as
 with
     splits as (
@@ -100,11 +134,19 @@ where
     inbetween.from_stop = from_stops.stop_sequence and
     inbetween.to_stop = to_stops.stop_sequence and
     triptimes.trip_id = inbetween.trip_id
-order by inbetween.trip_id, inbetween.from_stop
-;
+order by inbetween.trip_id, inbetween.from_stop;
+
 create index sidx__calctrips
-    on gtfs.calctrips using gist (shape)
-;
+    on gtfs.calctrips using gist (shape);
+
+/** view: gtfs.loctable_v2
+*
+* Estimated locations of currently running public transport. This
+* is the view that will be queried for current location of public transit
+* vehicles.
+*/
+
+
 create or replace view gtfs.loctable_v2 as
 with
     curtime as (
@@ -180,24 +222,18 @@ select
     trip.leg_start as prev_stop_time,
     curtime.ct as current_time,
     '#'::text || trip.route_color::text as route_color,
-    /* @tkardi 09.11.2021 st_flipcoordinates to quickly get API geojson
-       coors order correct. FIXME: should be a django version gdal version thing.
-    */
-    st_flipcoordinates(
-        st_lineinterpolatepoint(
-            trip.shape,
-            gtfs.get_time_fraction(
+    st_lineinterpolatepoint(
+        trip.shape,
+        gtfs.get_time_fraction(
+            trip.leg_start,
+            trip.leg_fin,
+            gtfs.get_current_impeded_time(
                 trip.leg_start,
                 trip.leg_fin,
-                gtfs.get_current_impeded_time(
-                    trip.leg_start,
-                    trip.leg_fin,
-                    trip.cur::character varying
-                )
+                trip.cur::character varying
             )
         )
     ) as pos
 from curtime, trip
     left join gtfs.stops tostop on trip.to_stop_id = tostop.stop_id
-    left join gtfs.stops fromstop on trip.from_stop_id = fromstop.stop_id
-;
+    left join gtfs.stops fromstop on trip.from_stop_id = fromstop.stop_id;

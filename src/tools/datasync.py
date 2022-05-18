@@ -11,18 +11,9 @@ import zipfile
 from io import StringIO
 import sys, os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ['DJANGO_SETTINGS_MODULE'] = 'api.settings'
+from app.load_resources import settings
 
-import django
-django.setup()
-
-
-from django.db import connections as CONNECTIONS
-from conf.settings import DBTABLES, DBSCHEMA
-
-ZIPURL = 'http://www.peatus.ee/gtfs/gtfs.zip'
-# FIXME: ZIPURL should be in conf.settings aswell!
+_PATH = os.path.dirname(__file__)
 
 class FilteredCSVFile(csv.DictReader, object):
     """Local helper for reading only specified columns from a csv file.
@@ -92,7 +83,7 @@ def _db_check_table(cursor, dbschema, dbtable):
 
     Returns a list with table's column names.
     """
-    tab = '%s.%s' % (dbschema, dbtable)
+    tab = f'{dbschema}.{dbtable}'
     sql = "select array_agg(attname) from pg_attribute " \
           "where attrelid=%s::regclass and not attisdropped and attnum > 0"
     params = (tab,)
@@ -104,7 +95,7 @@ def _fs_check_csv(path, filename, ext='txt'):
 
     Returns a tuple of csv absolute filepath, and headers.
     """
-    filename = '%s.%s' % (filename, ext)
+    filename = f'{filename}.{ext}'
     fp = os.path.join(path, filename)
     assert os.path.exists(fp)
     return fp, get_csv_header(fp)
@@ -115,8 +106,7 @@ def _get_insert_cols(db_cols, fp_cols, dbschema, tablename):
     Use this to figure out which columns need to be read from the csv file.
     """
     cols = list(set(db_cols).intersection(fp_cols))
-    assert len(cols) > 0, "%s.%s and %s.csv do not share any columns" % (
-        dbschema, dbtable, dbtable)
+    assert len(cols) > 0, f"{dbschema}.{dbtable} and {dbtable}.csv do not share any columns"
     return cols
 
 def _db_prepare_truncate(tableschema, tablename):
@@ -125,9 +115,8 @@ def _db_prepare_truncate(tableschema, tablename):
     @FIXME: as this is prone to injection check whether the tablename
     mentioned in args really exists.
     """
-    sql = """truncate table %(sch)s.%(tab)s cascade"""
-    params = dict(sch=tableschema, tab=tablename)
-    return sql % params
+    sql = f"""truncate table {tableschema}.{tablename} cascade"""
+    return sql
 
 #{main
 
@@ -138,7 +127,7 @@ def run():
         # local
         # to_path = 'tmp'
         # the real thing
-        to_path = download_zip(ZIPURL, tempfile.mkdtemp(prefix='eoy_'))
+        to_path = download_zip(settings.GTFS_ZIPURL, tempfile.mkdtemp(prefix='eoy_'))
         print(to_path)
         # loop through required files and look for a matching table
         # in the database
@@ -146,45 +135,48 @@ def run():
         # if table not found, raise exception
         # if exception, then rollback and stop whatever was going on
         # all database commands run in a single transaction
-        c = CONNECTIONS['sync']
-        with c.cursor() as cursor:
-            # loop through the list of tables specified at
-            # conf.settings.DBTABLES
-            for dbtable in DBTABLES:
-                # check if table exists in db and get it's columns
-                db_cols = _db_check_table(cursor, DBSCHEMA, dbtable)
-                # check if file present and get csv header
-                fp, fp_cols = _fs_check_csv(to_path, dbtable)
-                print ('%s.%s' %(DBSCHEMA, dbtable))
-                # get intersection of db_cols and fp_cols (i.e cols that
-                # are present in both)
-                cols = _get_insert_cols(db_cols, fp_cols, DBSCHEMA, dbtable)
-                # truncate old data,
-                st_trunc = _db_prepare_truncate(DBSCHEMA, dbtable)
-                cursor.execute(st_trunc)
-                # and fill anew ...
-                with open(fp, encoding='utf-8') as f:
-                    fcsv = FilteredCSVFile(f, fieldnames=cols, quotechar='"')
-                    tab = '%s.%s' % (DBSCHEMA, dbtable)
-                    cursor.copy_from(io.StringIO(fcsv.read()), tab, sep='\t', columns=cols)
-                    print(cursor.rowcount)
-                print('done %s' % fp)
+        with psycopg2.connect(**settings.DATABASE) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(f'SET search_path={settings.GTFS_DBSCHEMA},"$user",public')
+                # loop through the list of tables specified at
+                # settings.GTFS_DBTABLES
+                for dbtable in settings.GTFS_DBTABLES:
+                    # check if table exists in db and get it's columns
+                    db_cols = _db_check_table(cursor, settings.GTFS_DBSCHEMA, dbtable)
+                    # check if file present and get csv header
+                    fp, fp_cols = _fs_check_csv(to_path, dbtable)
+                    print (f'{settings.GTFS_DBSCHEMA}.{dbtable}')
+                    # get intersection of db_cols and fp_cols (i.e cols that
+                    # are present in both)
+                    cols = _get_insert_cols(db_cols, fp_cols, settings.GTFS_DBSCHEMA, dbtable)
+                    # truncate old data,
+                    st_trunc = _db_prepare_truncate(settings.GTFS_DBSCHEMA, dbtable)
+                    cursor.execute(st_trunc)
+                    # and fill anew ...
+                    with open(fp, encoding='utf-8') as f:
+                        fcsv = FilteredCSVFile(f, fieldnames=cols, quotechar='"')
+                        #tab = '%s.%s' % (settings.GTFS_DBSCHEMA, dbtable)
+                        cursor.copy_from(io.StringIO(fcsv.read()), dbtable, sep='\t', columns=cols)
+                        print(cursor.rowcount)
+                    print(f'done {fp}')
     except:
         raise
-    # FIXME: This is the place for calling data prep functions in the database.
+    shutil.rmtree(to_path)
 
-    # keep the file for now...
-    #shutil.rmtree(to_path)
-
-    def postprocess():
-        with open('preprocess-all.sql') as f:
+def postprocess():
+    print("starting postprocess...")
+    with psycopg2.connect(**settings.DATABASE) as connection:
+        fp = os.path.join(os.path.dirname(_PATH), 'resources', 'db', 'preprocess.sql')
+        with open(fp) as f:
             statements = f.read()
-        c = CONNECTIONS['sync']
-        with c.cursor() as cursor:
+        with connection.cursor() as cursor:
             for statement in statements.split(';'):
-                c.execute(statement)        
+                if statement.strip() != '':
+                    cursor.execute(statement.strip())
+    print("postprocess done")
 
 
 if __name__ == '__main__':
     run()
+    postprocess()
     #pass

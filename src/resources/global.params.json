@@ -1,0 +1,13 @@
+{
+  "GTFS_DBTABLES": [
+    "shapes",
+    "stop_times",
+    "trips",
+    "stops",
+    "routes",
+    "calendar",
+    "agency"
+  ],
+  "GTFS_DBSCHEMA" : "gtfs",
+  "GTFS_ZIPURL" : "http://www.peatus.ee/gtfs/gtfs.zip"
+}
