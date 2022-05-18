@@ -1,0 +1,12 @@
+{
+  "GTFS_DBTABLES": [
+    "shapes",
+    "stop_times",
+    "trips",
+    "stops",
+    "routes",
+    "calendar",
+    "agency"
+  ],
+  "GTFS_DBSCHEMA" : "gtfs"
+}
