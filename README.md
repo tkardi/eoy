@@ -56,7 +56,7 @@ Is based on Flask (Used to be Django, but not any more).
 Configuration is loaded in the following order:
 - [resources/global.params.json](/src/resources/global.params.json): this should
 contain all app specific settings, regardless of the env we're running in.
-- [resources/environment/${APP_ENV}.params.json](/src/resources/dev.params.json):
+- [resources/environment/${APP_ENV}.params.json](/src/resources/environment/dev.params.json):
 should contain all environment specific configuration (like db connection params).
 The file will selected based on the available `APP_ENV` environment variable
 value (case does not matter), and will default to `DEV` if not set. So if you
